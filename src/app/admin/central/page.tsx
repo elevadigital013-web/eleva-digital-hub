@@ -20,15 +20,22 @@ export default function AdminCentral() {
   const [toast, setToast] = useState({ msg: '', type: 'success' as 'success' | 'error' });
 
   // Carrega os dados para o Painel Completo
-  async function loadData() {
-    const [leadsResp, logsResp] = await Promise.all([
-      supabase.from('leads').select(`*, vendedores(nome)`).order('created_at', { ascending: false }),
-      supabase.from('logs_atividades').select('*').order('created_at', { ascending: false }).limit(10)
-    ]);
+async function loadData() {
+  const [leadsResp, logsResp] = await Promise.all([
+    // Mantemos a busca dos leads igual
+    supabase.from('leads').select(`*, vendedores(nome)`).order('created_at', { ascending: false }),
+    
+    // ALTERAÇÃO AQUI: Adicionamos ", vendedores(nome)" dentro do select
+    supabase
+      .from('logs_atividades')
+      .select('*, vendedores(nome)') 
+      .order('created_at', { ascending: false })
+      .limit(10)
+  ]);
 
-    if (leadsResp.data) setLeads(leadsResp.data);
-    if (logsResp.data) setLogs(logsResp.data);
-  }
+  if (leadsResp.data) setLeads(leadsResp.data);
+  if (logsResp.data) setLogs(logsResp.data);
+}
 
   useEffect(() => { loadData(); }, []);
 
@@ -208,21 +215,37 @@ export default function AdminCentral() {
           </div>
         </div>
 
-        {/* COLUNA 3: LOGS */}
-        <div className="lg:col-span-1 bg-slate-900 border border-slate-800 rounded-[40px] p-6">
-          <h2 className="text-[10px] font-black uppercase text-slate-500 mb-6 italic text-center">Logs do Sistema</h2>
-          <div className="space-y-4">
-            {logs.map(log => (
-              <div key={log.id} className="border-l-2 border-slate-800 pl-3 py-1">
-                <p className="text-[10px] text-slate-300">
-                  <span className="font-black text-blue-500 uppercase">{log.vendedor_nome || 'Sistema'}</span> {log.acao}
-                </p>
-              </div>
-            ))}
-          </div>
+       {/* COLUNA 3: LOGS DO SISTEMA ATUALIZADA */}
+<div className="lg:col-span-1 bg-slate-900 border border-slate-800 rounded-[40px] p-6">
+  <h2 className="text-[10px] font-black uppercase text-slate-500 mb-6 italic text-center">Logs do Sistema</h2>
+  <div className="space-y-4">
+    {logs.map(log => {
+      // Tenta pegar o nome da tabela vendedores (novo), 
+      // se não tiver, tenta o campo antigo, ou usa 'Sistema'
+      const nomeVendedor = log.vendedores?.nome || log.vendedor_nome || 'Sistema';
+      
+      return (
+        <div key={log.id} className="border-l-2 border-slate-800 pl-3 py-1">
+          <p className="text-[10px] text-slate-300">
+            {/* Nome do Vendedor em Azul */}
+            <span className="font-black text-blue-500 uppercase mr-1">
+              {nomeVendedor}
+            </span>
+            
+            {/* Ação do Log */}
+            <span className="italic opacity-80">
+              {log.acao}
+            </span>
+          </p>
+          
+          {/* Data pequena por baixo */}
+          <p className="text-[8px] text-slate-600 font-bold uppercase mt-1">
+            {new Date(log.created_at).toLocaleDateString('pt-BR')} às {new Date(log.created_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
+          </p>
         </div>
-
-      </div>
-    </div>
+      );
+    })}
+  </div>
+</div>
   );
 }
