@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Toast } from '@/components/Toast';
+import { useRouter } from 'next/navigation';
 
 // --- DEFINIÇÃO DE TIPOS (INTERFACES) ---
 

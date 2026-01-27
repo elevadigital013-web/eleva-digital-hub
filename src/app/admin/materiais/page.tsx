@@ -47,14 +47,11 @@ export default function AdminMateriais() {
                   className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm font-mono text-blue-400 outline-none focus:border-blue-600"
                 />
                 <button 
-                  onClick={() => {
-                    const val = (document.getElementById(`link-${item.id}`) as HTMLInputElement).value;
-                    updateLink(item.id, val);
-                  }}
-                  className="bg-blue-600 hover:bg-blue-500 px-6 rounded-xl font-black text-xs uppercase"
-                >
-                  SALVAR
-                </button>
+  onClick={() => router.push('/admin/central/docs')} 
+  className="bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-colors"
+>
+  Docs
+</button>
               </div>
             </div>
           ))}
