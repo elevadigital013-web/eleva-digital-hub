@@ -118,29 +118,71 @@ export default function AdminCentral() {
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
         
         {/* COLUNA 1: CALENDÁRIO & FATURAMENTO */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-blue-600 p-6 rounded-[35px] text-center shadow-lg">
-            <p className="text-blue-200 text-[9px] font-black uppercase mb-1 tracking-widest">Faturamento Mês</p>
-            {/* Calculando total real */}
-            <p className="text-3xl font-black">
-              {formatCurrency(leads.filter(l => l.status === 'fechado').reduce((acc, curr) => acc + Number(curr.valor_venda), 0))}
-            </p>
+<div className="lg:col-span-1 space-y-6">
+  <div className="bg-blue-600 p-6 rounded-[35px] text-center shadow-lg">
+    <p className="text-blue-200 text-[9px] font-black uppercase mb-1 tracking-widest">Faturamento Mês</p>
+    <p className="text-3xl font-black">
+      {formatCurrency(leads.filter(l => l.status === 'fechado').reduce((acc, curr) => acc + Number(curr.valor_venda), 0))}
+    </p>
+  </div>
+  
+  <div className="bg-slate-900 border border-slate-800 rounded-[40px] p-6 shadow-2xl overflow-visible"> {/* overflow-visible é importante para o tooltip sair da caixa se necessário */}
+    <h3 className="text-[10px] font-black uppercase tracking-widest text-blue-500 mb-6 text-center italic">Mapa de Vendas</h3>
+    
+    <div className="grid grid-cols-7 gap-2">
+      {eachDayOfInterval({ start: startOfMonth(new Date()), end: endOfMonth(new Date()) }).map(dia => {
+        
+        // 1. Alteração: Filtramos todas as vendas do dia para poder mostrá-las
+        const vendasDoDia = leads.filter(l => isSameDay(new Date(l.created_at), dia) && l.status === 'fechado');
+        const temVenda = vendasDoDia.length > 0;
+
+        return (
+          <div 
+            key={dia.toString()} 
+            // 2. Adicionado 'group relative' para controlar o hover
+            className={`group relative w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black cursor-pointer transition-all hover:scale-110 ${temVenda ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-950 text-slate-800 border border-slate-800/50'}`}
+          >
+            {dia.getDate()}
+
+            {/* 3. O Tooltip (Relatório Flutuante) */}
+            {temVenda && (
+              <div className="hidden group-hover:block absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-slate-800 border border-slate-700 p-3 rounded-xl shadow-2xl z-50 pointer-events-none">
+                {/* Seta do tooltip */}
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-800"></div>
+                
+                <p className="text-[9px] text-slate-400 uppercase font-bold mb-2 text-center border-b border-slate-700 pb-1">
+                  {format(dia, "dd 'de' MMM", { locale: ptBR })}
+                </p>
+
+                {/* Lista de vendas do dia */}
+                <div className="space-y-2">
+                  {vendasDoDia.map(venda => (
+                    <div key={venda.id} className="flex justify-between items-center text-[9px]">
+                      <span className="text-blue-400 font-bold truncate max-w-[80px]">
+                        {venda.vendedores?.nome || 'Admin'}
+                      </span>
+                      <span className="text-white font-medium">
+                        {formatCurrency(Number(venda.valor_venda))}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Total do dia */}
+                <div className="mt-2 pt-2 border-t border-slate-700 flex justify-between items-center text-[9px] font-black text-emerald-400">
+                  <span>TOTAL</span>
+                  <span>
+                    {formatCurrency(vendasDoDia.reduce((acc, curr) => acc + Number(curr.valor_venda), 0))}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
-          
-          <div className="bg-slate-900 border border-slate-800 rounded-[40px] p-6 shadow-2xl">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-blue-500 mb-6 text-center italic">Mapa de Vendas</h3>
-            <div className="grid grid-cols-7 gap-2">
-              {eachDayOfInterval({ start: startOfMonth(new Date()), end: endOfMonth(new Date()) }).map(dia => {
-                const temVenda = leads.some(l => isSameDay(new Date(l.created_at), dia) && l.status === 'fechado');
-                return (
-                  <div key={dia.toString()} className={`w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black ${temVenda ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-950 text-slate-800 border border-slate-800/50'}`}>
-                    {dia.getDate()}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        );
+      })}
+    </div>
+  </div>
+</div>
 
         {/* COLUNA 2: LEADS (LISTA COMPLETA) */}
         <div className="lg:col-span-2 space-y-4">
