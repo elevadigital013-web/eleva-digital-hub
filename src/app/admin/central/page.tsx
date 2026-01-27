@@ -1,6 +1,3 @@
-'use client'
-
-import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -8,7 +5,8 @@ import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay } from '
 import { ptBR } from 'date-fns/locale';
 import { Toast } from '@/components/Toast';
 
-// Definição das interfaces para TypeScript (ajuda a evitar erros de build)
+// --- DEFINIÇÃO DE TIPOS (INTERFACES) ---
+
 interface Vendedor {
   nome: string;
 }
@@ -33,6 +31,15 @@ interface Log {
   vendedores?: Vendedor;
 }
 
+// 1. Nova interface criada para os Cursos
+interface Curso {
+  id: number;
+  created_at: string;
+  titulo: string;
+  link_video?: string;   // Opcional (pode ser nulo)
+  link_material?: string; // Opcional
+}
+
 export default function AdminCentral() {
   const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -41,17 +48,13 @@ export default function AdminCentral() {
   
   // Estado do Novo Curso
   const [novoCurso, setNovoCurso] = useState({ titulo: '', link: '', pdf: '' });
-
-  
   
   const [toast, setToast] = useState({ msg: '', type: 'success' as 'success' | 'error' });
 
-  // ... teus outros estados (leads, logs, etc) ...
-  
-  // 1. Estado para guardar a lista de aulas
-  const [listaCursos, setListaCursos] = useState<any[]>([]);
+  // 2. Agora usamos o tipo Curso[] em vez de any[]
+  const [listaCursos, setListaCursos] = useState<Curso[]>([]);
 
-  // 2. Função para carregar as aulas do banco
+  // Função para carregar as aulas do banco
   async function carregarCursos() {
     const { data } = await supabase
       .from('cursos')
@@ -61,14 +64,14 @@ export default function AdminCentral() {
     if (data) setListaCursos(data);
   }
 
-  // 3. Carregar as aulas assim que entrar na aba de cursos
+  // Carregar as aulas assim que entrar na aba de cursos
   useEffect(() => {
     if (aba === 'cursos') {
       carregarCursos();
     }
-  }, [aba]); // Executa sempre que mudar de aba
+  }, [aba]); 
 
-  // 4. Função de Deletar
+  // Função de Deletar
   async function deletarCurso(id: number) {
     const confirmacao = window.confirm("Tem certeza que deseja apagar esta aula?");
     if (!confirmacao) return;
@@ -89,7 +92,7 @@ export default function AdminCentral() {
       // Carrega leads com o nome do vendedor
       supabase.from('leads').select(`*, vendedores(nome)`).order('created_at', { ascending: false }),
       
-      // Carrega logs E TENTA CARREGAR o nome do vendedor da tabela relacionada
+      // Carrega logs e tenta pegar o nome do vendedor
       supabase
         .from('logs_atividades')
         .select('*, vendedores(nome)')
@@ -104,8 +107,7 @@ export default function AdminCentral() {
   useEffect(() => { loadData(); }, []);
 
   const salvarCurso = async () => {
-    // NOVA VALIDAÇÃO:
-    // Precisa de Título E (Vídeo OU PDF). Se ambos os links estiverem vazios, dá erro.
+    // Validação: Título + (Vídeo OU PDF)
     if (!novoCurso.titulo || (!novoCurso.link && !novoCurso.pdf)) {
       setToast({ msg: 'Preencha o Título e pelo menos um Link (Vídeo ou PDF)!', type: 'error' });
       return;
@@ -113,7 +115,7 @@ export default function AdminCentral() {
 
     const { error } = await supabase.from('cursos').insert([{
       titulo: novoCurso.titulo,
-      link_video: novoCurso.link,      // Pode ir vazio agora
+      link_video: novoCurso.link,      
       link_material: novoCurso.pdf 
     }]);
     
@@ -123,7 +125,7 @@ export default function AdminCentral() {
     } else {
       setToast({ msg: 'Conteúdo Salvo com Sucesso! 🎓', type: 'success' });
       setNovoCurso({ titulo: '', link: '', pdf: '' }); // Limpa os campos
-      carregarCursos(); // Atualiza a lista lá em baixo
+      carregarCursos(); // Atualiza a lista
     }
   };
   
@@ -151,7 +153,7 @@ export default function AdminCentral() {
         
         <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
           
-          {/* LADO ESQUERDO: FORMULÁRIO DE CADASTRO (IGUAL AO QUE TINHAS) */}
+          {/* LADO ESQUERDO: FORMULÁRIO DE CADASTRO */}
           <div className="bg-slate-900 p-8 rounded-[40px] border border-slate-800 shadow-2xl h-fit">
             <h2 className="text-xl font-black italic mb-6 text-center uppercase">Nova Aula</h2>
             <div className="space-y-4">
@@ -176,7 +178,7 @@ export default function AdminCentral() {
             </div>
           </div>
 
-          {/* LADO DIREITO: LISTA DE AULAS EXISTENTES (NOVO) */}
+          {/* LADO DIREITO: LISTA DE AULAS EXISTENTES */}
           <div className="space-y-4">
              <h2 className="text-xl font-black italic mb-6 text-center uppercase text-slate-500">Aulas Ativas</h2>
              
@@ -324,9 +326,9 @@ export default function AdminCentral() {
                       {log.acao}
                     </span>
                     {log.valor && (
-                       <span className="text-emerald-400 font-bold ml-1">
-                         {formatCurrency(log.valor)}
-                       </span>
+                        <span className="text-emerald-400 font-bold ml-1">
+                          {formatCurrency(log.valor)}
+                        </span>
                     )}
                   </p>
                   <p className="text-[8px] text-slate-600 font-bold uppercase mt-1">
