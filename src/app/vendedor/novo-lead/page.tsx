@@ -1,70 +1,157 @@
 'use client'
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
 export default function NovoLead() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({ nome_cliente: '', telefone: '', servico: 'Criação de Site', valor_venda: '' });
+  const [vendedor, setVendedor] = useState<any>(null);
+
+  // Estado do Formulário
+  const [formData, setFormData] = useState({
+    nome_cliente: '',
+    telefone: '',
+    servico: 'Landing Page',
+    valor_venda: '',
+    status: 'aberto'
+  });
+
+  useEffect(() => {
+    async function getUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/');
+        return;
+      }
+      setVendedor(user);
+    }
+    getUser();
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    const valor = Number(formData.valor_venda) || 0;
-    const status = valor > 0 ? 'fechado' : 'aberto';
 
-    const { error } = await supabase.from('leads').insert([{ 
-      nome_cliente: formData.nome_cliente, 
-      telefone: formData.telefone, 
-      servico: formData.servico, 
-      status, 
-      valor_venda: valor, 
-      vendedor_id: user?.id 
-    }]);
-
-    if (!error) {
-      await supabase.from('logs_atividades').insert([{
-        vendedor_id: user?.id,
-        vendedor_nome: user?.user_metadata?.nome || 'Consultor',
-        acao: 'CADASTRO_LEAD',
-        detalhes: `Cliente: ${formData.nome_cliente} | Valor: ${valor}`
+    try {
+      // 1. Salvar o Lead na tabela 'leads'
+      const { error: leadError } = await supabase.from('leads').insert([{
+        nome_cliente: formData.nome_cliente,
+        telefone: formData.telefone, // Garante que salva na coluna certa
+        servico: formData.servico,
+        valor_venda: formData.status === 'fechado' ? Number(formData.valor_venda) : 0,
+        status: formData.status,
+        vendedor_id: vendedor.id,
+        pago: false
       }]);
-      setShowModal(true);
+
+      if (leadError) throw leadError;
+
+      // 2. Salvar o Log com o NOME REAL do vendedor
+      const nomeVendedor = vendedor.user_metadata?.nome || 'Consultor';
+      
+      await supabase.from('logs_atividades').insert([{
+        vendedor_nome: nomeVendedor, // Aqui resolvemos o problema do "CONSULTOR"
+        acao: formData.status === 'fechado' ? 'FECHOU_VENDA' : 'CADASTRO_LEAD',
+        detalhes: `Cliente: ${formData.nome_cliente} | Valor: ${formData.valor_venda}`
+      }]);
+
+      alert('Sucesso! Registro salvo na Eleva Digital.');
+      router.push('/vendedor/dashboard');
+
+    } catch (error: any) {
+      alert('Erro ao salvar: ' + error.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 font-sans flex items-center justify-center">
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-md">
-          <div className="bg-white rounded-[40px] p-10 w-full max-w-sm text-center shadow-2xl animate-in zoom-in duration-300">
-            <div className="text-5xl mb-4">✅</div>
-            <h2 className="text-2xl font-black text-slate-800 mb-2">Sucesso Total!</h2>
-            <p className="text-slate-400 font-bold text-[10px] uppercase mb-8 tracking-widest">A Eleva Digital agradece!</p>
-            <button onClick={() => router.push('/vendedor/dashboard')} className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg">VOLTAR</button>
-          </div>
-        </div>
-      )}
+    <div className="min-h-screen bg-slate-50 p-6 font-sans">
+      <header className="mb-8">
+        <button onClick={() => router.back()} className="text-blue-600 font-black text-xs uppercase tracking-widest mb-4">← Voltar</button>
+        <h1 className="text-3xl font-black text-slate-900 tracking-tighter italic">Novo Registro <br/><span className="text-blue-600">Eleva Digital</span></h1>
+      </header>
 
-      <form onSubmit={handleSubmit} className="w-full max-w-md bg-white p-8 rounded-[35px] shadow-xl space-y-5">
-        <h1 className="text-2xl font-black tracking-tighter mb-4">Novo Registro <br/><span className="text-blue-600 uppercase text-[10px] tracking-[0.3em]">Eleva Digital</span></h1>
-        <input type="text" required placeholder="Nome do Cliente" className="w-full p-4 bg-slate-50 rounded-xl outline-none font-bold" value={formData.nome_cliente} onChange={e => setFormData({...formData, nome_cliente: e.target.value})} />
-        <input type="tel" required placeholder="WhatsApp" className="w-full p-4 bg-slate-50 rounded-xl outline-none font-bold" value={formData.telefone} onChange={e => setFormData({...formData, telefone: e.target.value})} />
-        <select className="w-full p-4 bg-slate-50 rounded-xl font-bold outline-none" value={formData.servico} onChange={e => setFormData({...formData, servico: e.target.value})}>
-          <option value="Criação de Site">Criação de Site</option>
-          <option value="Landing Page">Landing Page</option>
-          <option value="Tráfego Pago">Gestão de Tráfego</option>
-        </select>
-        <div className="bg-blue-50 p-5 rounded-2xl">
-          <label className="text-[10px] font-black text-blue-500 uppercase">Valor do Contrato (R$)</label>
-          <input type="number" step="0.01" className="w-full bg-transparent text-xl font-black outline-none border-b border-blue-200" value={formData.valor_venda} onChange={e => setFormData({...formData, valor_venda: e.target.value})} />
+      <form onSubmit={handleSubmit} className="space-y-4 max-w-md mx-auto">
+        <div className="bg-white p-6 rounded-[35px] shadow-sm border border-slate-100 space-y-4">
+          <div>
+            <label className="text-[10px] font-black uppercase text-slate-400 ml-2 italic tracking-widest">Nome do Cliente / Empresa</label>
+            <input 
+              required
+              type="text" 
+              className="w-full bg-slate-50 border-none rounded-2xl p-4 text-slate-800 font-medium focus:ring-2 focus:ring-blue-500"
+              placeholder="Ex: Padaria do Zé"
+              onChange={(e) => setFormData({...formData, nome_cliente: e.target.value})}
+            />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-black uppercase text-slate-400 ml-2 italic tracking-widest">WhatsApp de Contato</label>
+            <input 
+              required
+              type="tel" 
+              className="w-full bg-slate-50 border-none rounded-2xl p-4 text-slate-800 font-medium"
+              placeholder="(13) 99999-9999"
+              onChange={(e) => setFormData({...formData, telefone: e.target.value})}
+            />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-black uppercase text-slate-400 ml-2 italic tracking-widest">Serviço</label>
+            <select 
+              className="w-full bg-slate-50 border-none rounded-2xl p-4 text-slate-800 font-bold"
+              onChange={(e) => setFormData({...formData, servico: e.target.value})}
+            >
+              <option>Landing Page</option>
+              <option>Site Institucional</option>
+              <option>Gestão de Tráfego</option>
+              <option>Google Meu Negócio</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-black uppercase text-slate-400 ml-2 italic tracking-widest">Status Inicial</label>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <button 
+                type="button"
+                onClick={() => setFormData({...formData, status: 'aberto'})}
+                className={`p-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${formData.status === 'aberto' ? 'bg-amber-500 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}
+              >
+                Lead Aberto
+              </button>
+              <button 
+                type="button"
+                onClick={() => setFormData({...formData, status: 'fechado'})}
+                className={`p-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${formData.status === 'fechado' ? 'bg-emerald-500 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}
+              >
+                Venda Fechada
+              </button>
+            </div>
+          </div>
+
+          {formData.status === 'fechado' && (
+            <div className="animate-in fade-in zoom-in duration-300">
+              <label className="text-[10px] font-black uppercase text-blue-600 ml-2 italic tracking-widest">Valor da Venda (R$)</label>
+              <input 
+                required
+                type="number" 
+                className="w-full bg-blue-50 border-2 border-blue-100 rounded-2xl p-4 text-blue-600 font-black text-xl"
+                placeholder="0.00"
+                onChange={(e) => setFormData({...formData, valor_venda: e.target.value})}
+              />
+            </div>
+          )}
         </div>
-        <button type="submit" className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl">{loading ? '...' : 'CONFIRMAR'}</button>
+
+        <button 
+          disabled={loading}
+          type="submit"
+          className="w-full bg-slate-900 text-white p-6 rounded-[30px] font-black uppercase italic tracking-tighter shadow-xl active:scale-95 transition-all disabled:opacity-50"
+        >
+          {loading ? 'Processando...' : 'FINALIZAR REGISTRO 🔥'}
+        </button>
       </form>
     </div>
   );
