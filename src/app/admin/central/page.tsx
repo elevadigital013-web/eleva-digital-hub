@@ -41,8 +41,47 @@ export default function AdminCentral() {
   
   // Estado do Novo Curso
   const [novoCurso, setNovoCurso] = useState({ titulo: '', link: '', pdf: '' });
+
+  
   
   const [toast, setToast] = useState({ msg: '', type: 'success' as 'success' | 'error' });
+
+  // ... teus outros estados (leads, logs, etc) ...
+  
+  // 1. Estado para guardar a lista de aulas
+  const [listaCursos, setListaCursos] = useState<any[]>([]);
+
+  // 2. Função para carregar as aulas do banco
+  async function carregarCursos() {
+    const { data } = await supabase
+      .from('cursos')
+      .select('*')
+      .order('created_at', { ascending: false });
+      
+    if (data) setListaCursos(data);
+  }
+
+  // 3. Carregar as aulas assim que entrar na aba de cursos
+  useEffect(() => {
+    if (aba === 'cursos') {
+      carregarCursos();
+    }
+  }, [aba]); // Executa sempre que mudar de aba
+
+  // 4. Função de Deletar
+  async function deletarCurso(id: number) {
+    const confirmacao = window.confirm("Tem certeza que deseja apagar esta aula?");
+    if (!confirmacao) return;
+
+    const { error } = await supabase.from('cursos').delete().eq('id', id);
+
+    if (error) {
+      setToast({ msg: 'Erro ao apagar.', type: 'error' });
+    } else {
+      setToast({ msg: 'Aula removida!', type: 'success' });
+      carregarCursos(); // Atualiza a lista na hora
+    }
+  }
 
   // Carrega os dados para o Painel Completo
   async function loadData() {
@@ -99,7 +138,7 @@ export default function AdminCentral() {
     );
   }
 
-  // ABA CURSOS
+  // ABA CURSOS (COM LISTAGEM E EXCLUSÃO)
   if (aba === 'cursos') {
     return (
       <div className="min-h-screen bg-slate-950 p-8 text-white relative">
@@ -107,28 +146,63 @@ export default function AdminCentral() {
         
         <button onClick={() => setAba('dashboard')} className="mb-8 font-black text-blue-600 uppercase text-xs">← Voltar</button>
         
-        <div className="max-w-md mx-auto bg-slate-900 p-8 rounded-[40px] border border-slate-800 shadow-2xl">
-          <h2 className="text-xl font-black italic mb-6 text-center uppercase">Nova Aula</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase ml-2">Título da Aula</label>
-              <input type="text" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl" value={novoCurso.titulo} onChange={e => setNovoCurso({...novoCurso, titulo: e.target.value})} />
-            </div>
-            
-            <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase ml-2">Link do Vídeo (YouTube)</label>
-              <input type="text" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl" value={novoCurso.link} onChange={e => setNovoCurso({...novoCurso, link: e.target.value})} />
-            </div>
+        <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
+          
+          {/* LADO ESQUERDO: FORMULÁRIO DE CADASTRO (IGUAL AO QUE TINHAS) */}
+          <div className="bg-slate-900 p-8 rounded-[40px] border border-slate-800 shadow-2xl h-fit">
+            <h2 className="text-xl font-black italic mb-6 text-center uppercase">Nova Aula</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase ml-2">Título da Aula</label>
+                <input type="text" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl" value={novoCurso.titulo} onChange={e => setNovoCurso({...novoCurso, titulo: e.target.value})} />
+              </div>
+              
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase ml-2">Link do Vídeo (YouTube)</label>
+                <input type="text" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl" value={novoCurso.link} onChange={e => setNovoCurso({...novoCurso, link: e.target.value})} />
+              </div>
 
-            <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase ml-2">Link do Material PDF (Drive/Canva)</label>
-              <input type="text" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl" placeholder="https://..." value={novoCurso.pdf} onChange={e => setNovoCurso({...novoCurso, pdf: e.target.value})} />
-            </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase ml-2">Link do Material PDF</label>
+                <input type="text" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl" placeholder="https://..." value={novoCurso.pdf} onChange={e => setNovoCurso({...novoCurso, pdf: e.target.value})} />
+              </div>
 
-            <button onClick={salvarCurso} className="w-full bg-blue-600 p-4 rounded-2xl font-black uppercase hover:bg-blue-500 transition-all mt-4">
-              Publicar Conteúdo
-            </button>
+              <button onClick={async () => { await salvarCurso(); carregarCursos(); }} className="w-full bg-blue-600 p-4 rounded-2xl font-black uppercase hover:bg-blue-500 transition-all mt-4">
+                Publicar Conteúdo
+              </button>
+            </div>
           </div>
+
+          {/* LADO DIREITO: LISTA DE AULAS EXISTENTES (NOVO) */}
+          <div className="space-y-4">
+             <h2 className="text-xl font-black italic mb-6 text-center uppercase text-slate-500">Aulas Ativas</h2>
+             
+             {listaCursos.length === 0 && (
+                <p className="text-center text-slate-600 text-xs">Nenhuma aula cadastrada ainda.</p>
+             )}
+
+             {listaCursos.map(curso => (
+               <div key={curso.id} className="bg-slate-900 border border-slate-800 p-4 rounded-3xl flex justify-between items-center group hover:border-blue-500 transition-colors">
+                  <div className="overflow-hidden">
+                    <p className="font-bold text-sm truncate">{curso.titulo}</p>
+                    <div className="flex gap-2 mt-1">
+                        {curso.link_video && <span className="text-[9px] bg-slate-800 px-2 py-1 rounded text-blue-400">VÍDEO</span>}
+                        {curso.link_material && <span className="text-[9px] bg-slate-800 px-2 py-1 rounded text-emerald-400">PDF</span>}
+                    </div>
+                  </div>
+
+                  {/* BOTÃO DE EXCLUIR */}
+                  <button 
+                    onClick={() => deletarCurso(curso.id)}
+                    className="bg-slate-950 text-slate-500 hover:text-red-500 hover:bg-red-500/10 w-10 h-10 rounded-full flex items-center justify-center transition-all"
+                    title="Excluir aula"
+                  >
+                    🗑️
+                  </button>
+               </div>
+             ))}
+          </div>
+
         </div>
       </div>
     );
