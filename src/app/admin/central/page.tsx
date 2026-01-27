@@ -1,19 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'; // Importação do React
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Toast } from '@/components/Toast';
-import { useRouter } from 'next/navigation';
 
-// --- DEFINIÇÃO DE TIPOS (INTERFACES) ---
+// --- INTERFACES ---
 
-interface Vendedor {
-  nome: string;
-}
+interface Vendedor { nome: string; }
 
 interface Lead {
   id: number;
@@ -37,54 +34,43 @@ interface Log {
 
 interface Curso {
   id: number;
-  created_at: string;
   titulo: string;
   link_video?: string;   
   link_material?: string; 
 }
 
+// Interface para os Docs Internos
+interface Documento {
+  id: number;
+  titulo: string;
+  link_arquivo: string;
+  created_at: string;
+}
+
 export default function AdminCentral() {
   const router = useRouter();
+  const [aba, setAba] = useState<'dashboard' | 'docs' | 'cursos'>('dashboard');
+  const [toast, setToast] = useState({ msg: '', type: 'success' as 'success' | 'error' });
+
+  // ESTADOS DASHBOARD
   const [leads, setLeads] = useState<Lead[]>([]);
   const [logs, setLogs] = useState<Log[]>([]);
-  const [aba, setAba] = useState<'dashboard' | 'docs' | 'cursos'>('dashboard');
-  
-  // ESTADOS DO FORMULÁRIO
-  const [novoCurso, setNovoCurso] = useState({ titulo: '', link: '' }); // Removi o campo de texto do PDF
-  const [arquivoPdf, setArquivoPdf] = useState<File | null>(null); // Novo estado para o ARQUIVO real
-  const [uploading, setUploading] = useState(false); // Estado para mostrar "Enviando..."
 
-  const [toast, setToast] = useState({ msg: '', type: 'success' as 'success' | 'error' });
+  // ESTADOS CURSOS
   const [listaCursos, setListaCursos] = useState<Curso[]>([]);
+  const [novoCurso, setNovoCurso] = useState({ titulo: '', link: '' });
+  const [arquivoPdfAula, setArquivoPdfAula] = useState<File | null>(null);
+  const [uploadingCurso, setUploadingCurso] = useState(false);
 
-  // Carregar as aulas
-  async function carregarCursos() {
-    const { data } = await supabase
-      .from('cursos')
-      .select('*')
-      .order('created_at', { ascending: false });
-      
-    if (data) setListaCursos(data);
-  }
+  // ESTADOS DOCS (NOVO)
+  const [listaDocs, setListaDocs] = useState<Documento[]>([]);
+  const [tituloDoc, setTituloDoc] = useState('');
+  const [arquivoDoc, setArquivoDoc] = useState<File | null>(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
-  useEffect(() => {
-    if (aba === 'cursos') carregarCursos();
-  }, [aba]); 
 
-  // Deletar aula e arquivo
-  async function deletarCurso(id: number) {
-    if (!window.confirm("Tem certeza que deseja apagar esta aula?")) return;
-    const { error } = await supabase.from('cursos').delete().eq('id', id);
+  // --- CARREGAMENTO DE DADOS ---
 
-    if (error) {
-      setToast({ msg: 'Erro ao apagar.', type: 'error' });
-    } else {
-      setToast({ msg: 'Aula removida!', type: 'success' });
-      carregarCursos();
-    }
-  }
-
-  // Carregar dados gerais
   async function loadData() {
     const [leadsResp, logsResp] = await Promise.all([
       supabase.from('leads').select(`*, vendedores(nome)`).order('created_at', { ascending: false }),
@@ -93,87 +79,160 @@ export default function AdminCentral() {
     if (leadsResp.data) setLeads(leadsResp.data);
     if (logsResp.data) setLogs(logsResp.data);
   }
+
+  async function carregarCursos() {
+    const { data } = await supabase.from('cursos').select('*').order('created_at', { ascending: false });
+    if (data) setListaCursos(data);
+  }
+
+  async function carregarDocs() {
+    const { data } = await supabase.from('documentos_tecnicos').select('*').order('created_at', { ascending: false });
+    if (data) setListaDocs(data);
+  }
+
   useEffect(() => { loadData(); }, []);
+  
+  useEffect(() => {
+    if (aba === 'cursos') carregarCursos();
+    if (aba === 'docs') carregarDocs();
+  }, [aba]);
 
 
-  // --- FUNÇÃO PARA SALVAR (AGORA COM UPLOAD) ---
-  const salvarCurso = async () => {
-    // 1. Validação Básica
-    if (!novoCurso.titulo) {
-      setToast({ msg: 'O Título é obrigatório!', type: 'error' });
-      return;
+  // --- FUNÇÕES DE CURSOS ---
+
+  async function salvarCurso() {
+    if (!novoCurso.titulo) return alert('Título obrigatório');
+    setUploadingCurso(true);
+    let urlPdf = '';
+
+    if (arquivoPdfAula) {
+      const nome = `aula-${Date.now()}-${arquivoPdfAula.name.replace(/\s/g, '-')}`;
+      await supabase.storage.from('materiais').upload(nome, arquivoPdfAula);
+      const { data } = supabase.storage.from('materiais').getPublicUrl(nome);
+      urlPdf = data.publicUrl;
     }
 
-    if (!novoCurso.link && !arquivoPdf) {
-      setToast({ msg: 'Adicione um Vídeo OU suba um PDF!', type: 'error' });
-      return;
-    }
-
-    setUploading(true); // Começa o carregamento
-    let urlPdfFinal = '';
-
-    // 2. Se tiver arquivo selecionado, faz o upload para o Supabase Storage
-    if (arquivoPdf) {
-      try {
-        // Cria um nome único para o arquivo (ex: 1723123-manual.pdf) para não substituir outros
-        const nomeArquivo = `${Date.now()}-${arquivoPdf.name.replace(/\s/g, '-')}`;
-        
-        const { data, error: uploadError } = await supabase.storage
-          .from('materiais') // Nome do bucket que criamos no passo 1
-          .upload(nomeArquivo, arquivoPdf);
-
-        if (uploadError) throw uploadError;
-
-        // Pega o link público desse arquivo
-        const { data: publicUrlData } = supabase.storage
-          .from('materiais')
-          .getPublicUrl(nomeArquivo);
-
-        urlPdfFinal = publicUrlData.publicUrl;
-
-      } catch (error) {
-        console.error("Erro no upload:", error);
-        setToast({ msg: 'Erro ao subir o PDF.', type: 'error' });
-        setUploading(false);
-        return;
-      }
-    }
-
-    // 3. Salva no Banco de Dados com o link gerado
-    const { error } = await supabase.from('cursos').insert([{
+    await supabase.from('cursos').insert([{
       titulo: novoCurso.titulo,
       link_video: novoCurso.link,      
-      link_material: urlPdfFinal // Salva o link do Supabase, não do Drive
+      link_material: urlPdf 
     }]);
     
-    setUploading(false); // Termina carregamento
+    setUploadingCurso(false);
+    setNovoCurso({ titulo: '', link: '' });
+    setArquivoPdfAula(null);
+    setToast({ msg: 'Aula salva!', type: 'success' });
+    carregarCursos();
+  }
 
-    if (error) {
-      console.error(error);
-      setToast({ msg: 'Erro ao salvar no banco.', type: 'error' });
-    } else {
-      setToast({ msg: 'Aula e Arquivo Salvos! 🚀', type: 'success' });
-      // Limpa tudo
-      setNovoCurso({ titulo: '', link: '' });
-      setArquivoPdf(null); 
-      // Reseta o input de arquivo visualmente
-      const fileInput = document.getElementById('inputPdf') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
-      
-      carregarCursos();
+  async function deletarCurso(id: number) {
+    if (!confirm("Apagar aula?")) return;
+    await supabase.from('cursos').delete().eq('id', id);
+    carregarCursos();
+  }
+
+
+  // --- FUNÇÕES DE DOCS (NOVO) ---
+
+  async function salvarDoc() {
+    if (!tituloDoc || !arquivoDoc) return alert('Preencha título e arquivo');
+    setUploadingDoc(true);
+
+    try {
+      const nome = `doc-${Date.now()}-${arquivoDoc.name.replace(/\s/g, '-')}`;
+      const { error: uploadError } = await supabase.storage.from('docs_internos').upload(nome, arquivoDoc);
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('docs_internos').getPublicUrl(nome);
+
+      await supabase.from('documentos_tecnicos').insert([{
+        titulo: tituloDoc,
+        link_arquivo: data.publicUrl
+      }]);
+
+      setTituloDoc('');
+      setArquivoDoc(null);
+      // Limpa input visualmente
+      const input = document.getElementById('inputDoc') as HTMLInputElement;
+      if(input) input.value = '';
+
+      setToast({ msg: 'Documento salvo!', type: 'success' });
+      carregarDocs();
+
+    } catch (e) {
+      console.error(e);
+      setToast({ msg: 'Erro ao subir documento.', type: 'error' });
+    } finally {
+      setUploadingDoc(false);
     }
-  };
-  
-  // ... CÓDIGO DAS ABAS DE DASHBOARD E DOCS (MANTÉM IGUAL) ...
-  // ABA DOCUMENTOS
+  }
+
+  async function deletarDoc(id: number) {
+    if (!confirm("Apagar documento?")) return;
+    await supabase.from('documentos_tecnicos').delete().eq('id', id);
+    carregarDocs();
+  }
+
+
+  // --- RENDERIZAÇÃO ---
+
+  // ABA DOCUMENTOS (PAINEL ADMIN)
   if (aba === 'docs') {
     return (
-      <div className="min-h-screen bg-white p-8 text-slate-900">
+      <div className="min-h-screen bg-white p-8 text-slate-900 font-sans">
+        <Toast message={toast.msg} type={toast.type} onClose={() => setToast({ ...toast, msg: '' })} />
         <button onClick={() => setAba('dashboard')} className="mb-6 font-black text-blue-600 uppercase text-xs">← Voltar</button>
-        <h1 className="text-3xl font-black italic mb-6">Manual Operacional</h1>
-        <div className="p-6 bg-slate-50 rounded-3xl border border-slate-200">
-          <p className="font-bold text-blue-600">Regras de Comissão:</p>
-          <p className="text-sm">20% Fixo | 25% Acima de 5k.</p>
+        
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-3xl font-black italic mb-6">Documentação & Arquivos (Admin)</h1>
+
+          {/* ÁREA DE UPLOAD DOCS */}
+          <div className="bg-slate-100 p-6 rounded-3xl border border-slate-200 mb-8">
+            <h2 className="font-black uppercase text-slate-500 text-xs mb-4">Adicionar Novo Documento</h2>
+            <div className="flex flex-col md:flex-row gap-4">
+               <input 
+                 type="text" 
+                 placeholder="Nome do Documento (Ex: Manual 2024)" 
+                 className="p-3 rounded-xl border border-slate-300 flex-1"
+                 value={tituloDoc}
+                 onChange={e => setTituloDoc(e.target.value)}
+               />
+               <input 
+                 id="inputDoc"
+                 type="file" 
+                 className="p-2 bg-white rounded-xl border border-slate-300 text-sm"
+                 onChange={e => setArquivoDoc(e.target.files ? e.target.files[0] : null)}
+               />
+               <button 
+                 onClick={salvarDoc}
+                 disabled={uploadingDoc}
+                 className="bg-emerald-500 text-white font-bold px-6 rounded-xl uppercase text-xs hover:bg-emerald-600"
+               >
+                 {uploadingDoc ? 'Enviando...' : 'Subir'}
+               </button>
+            </div>
+          </div>
+
+          {/* LISTA DE DOCS */}
+          <div className="space-y-3">
+            {listaDocs.map(doc => (
+              <div key={doc.id} className="flex justify-between items-center p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-blue-400 transition-colors">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">📄</span>
+                  <div>
+                    <p className="font-bold text-slate-800">{doc.titulo}</p>
+                    <p className="text-[10px] text-slate-400">Enviado em: {new Date(doc.created_at).toLocaleDateString()}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <a href={doc.link_arquivo} target="_blank" className="bg-blue-50 text-blue-600 font-bold text-xs px-3 py-2 rounded-lg hover:bg-blue-100">BAIXAR ⬇</a>
+                  <button onClick={() => deletarDoc(doc.id)} className="bg-red-50 text-red-500 font-bold text-xs px-3 py-2 rounded-lg hover:bg-red-100">X</button>
+                </div>
+              </div>
+            ))}
+            {listaDocs.length === 0 && <p className="text-center text-slate-400 italic">Nenhum documento encontrado.</p>}
+          </div>
+
         </div>
       </div>
     );
@@ -182,77 +241,51 @@ export default function AdminCentral() {
   // ABA CURSOS
   if (aba === 'cursos') {
     return (
-      <div className="min-h-screen bg-slate-950 p-8 text-white relative">
+      <div className="min-h-screen bg-slate-950 p-8 text-white relative font-sans">
         <Toast message={toast.msg} type={toast.type} onClose={() => setToast({ ...toast, msg: '' })} />
-        
         <button onClick={() => setAba('dashboard')} className="mb-8 font-black text-blue-600 uppercase text-xs">← Voltar</button>
         
         <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
-          
-          {/* LADO ESQUERDO: FORMULÁRIO */}
+          {/* FORMULÁRIO */}
           <div className="bg-slate-900 p-8 rounded-[40px] border border-slate-800 shadow-2xl h-fit">
             <h2 className="text-xl font-black italic mb-6 text-center uppercase">Nova Aula</h2>
             <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase ml-2">Título da Aula</label>
-                <input type="text" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl" value={novoCurso.titulo} onChange={e => setNovoCurso({...novoCurso, titulo: e.target.value})} />
-              </div>
+              <input type="text" placeholder="Título" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl" value={novoCurso.titulo} onChange={e => setNovoCurso({...novoCurso, titulo: e.target.value})} />
+              <input type="text" placeholder="Link YouTube" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl" value={novoCurso.link} onChange={e => setNovoCurso({...novoCurso, link: e.target.value})} />
               
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase ml-2">Link do Vídeo (YouTube)</label>
-                <input type="text" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl" placeholder="Link do Youtube..." value={novoCurso.link} onChange={e => setNovoCurso({...novoCurso, link: e.target.value})} />
+                <label className="text-[10px] font-bold text-slate-500 uppercase ml-2">PDF (Upload)</label>
+                <input type="file" accept="application/pdf" onChange={e => setArquivoPdfAula(e.target.files ? e.target.files[0] : null)} className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-slate-400" />
               </div>
 
-              {/* --- MUDANÇA AQUI: INPUT DE ARQUIVO --- */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase ml-2">Arquivo PDF (Upload)</label>
-                <div className="relative">
-                    <input 
-                        id="inputPdf"
-                        type="file" 
-                        accept="application/pdf"
-                        onChange={e => setArquivoPdf(e.target.files ? e.target.files[0] : null)}
-                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500"
-                    />
-                </div>
-                {arquivoPdf && <p className="text-[10px] text-emerald-500 mt-1 ml-2">Arquivo selecionado: {arquivoPdf.name}</p>}
-              </div>
-
-              <button 
-                onClick={salvarCurso} 
-                disabled={uploading}
-                className={`w-full p-4 rounded-2xl font-black uppercase transition-all mt-4 ${uploading ? 'bg-slate-700 cursor-wait' : 'bg-blue-600 hover:bg-blue-500'}`}
-              >
-                {uploading ? 'Enviando PDF...' : 'Publicar Conteúdo'}
+              <button onClick={salvarCurso} disabled={uploadingCurso} className="w-full bg-blue-600 p-4 rounded-2xl font-black uppercase hover:bg-blue-500 transition-all mt-4">
+                {uploadingCurso ? 'Enviando...' : 'Publicar Conteúdo'}
               </button>
             </div>
           </div>
 
-          {/* LADO DIREITO: LISTA */}
+          {/* LISTA */}
           <div className="space-y-4">
              <h2 className="text-xl font-black italic mb-6 text-center uppercase text-slate-500">Aulas Ativas</h2>
-             {listaCursos.length === 0 && <p className="text-center text-slate-600 text-xs">Nenhuma aula cadastrada ainda.</p>}
-             
              {listaCursos.map(curso => (
-               <div key={curso.id} className="bg-slate-900 border border-slate-800 p-4 rounded-3xl flex justify-between items-center group hover:border-blue-500 transition-colors">
+               <div key={curso.id} className="bg-slate-900 border border-slate-800 p-4 rounded-3xl flex justify-between items-center">
                   <div className="overflow-hidden">
-                    <p className="font-bold text-sm truncate max-w-[200px]">{curso.titulo}</p>
+                    <p className="font-bold text-sm truncate max-w-[180px]">{curso.titulo}</p>
                     <div className="flex gap-2 mt-1">
                         {curso.link_video && <span className="text-[9px] bg-slate-800 px-2 py-1 rounded text-blue-400">VÍDEO</span>}
                         {curso.link_material && <span className="text-[9px] bg-slate-800 px-2 py-1 rounded text-emerald-400">PDF</span>}
                     </div>
                   </div>
-                  <button onClick={() => deletarCurso(curso.id)} className="bg-slate-950 text-slate-500 hover:text-red-500 hover:bg-red-500/10 w-10 h-10 rounded-full flex items-center justify-center transition-all">🗑️</button>
+                  <button onClick={() => deletarCurso(curso.id)} className="bg-slate-950 text-slate-500 hover:text-red-500 w-10 h-10 rounded-full">🗑️</button>
                </div>
              ))}
           </div>
-
         </div>
       </div>
     );
   }
 
-  // ... DASHBOARD (MANTÉM IGUAL - vou simplificar aqui para não estourar o limite de texto, mas usa o que já tinhas) ...
+  // DASHBOARD
   return (
     <div className="min-h-screen bg-slate-950 text-white p-4 md:p-8 font-sans relative">
       <Toast message={toast.msg} type={toast.type} onClose={() => setToast({ ...toast, msg: '' })} />
@@ -266,7 +299,7 @@ export default function AdminCentral() {
       </div>
 
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* COLUNA 1: FATURAMENTO & MAPA */}
+        {/* CALENDÁRIO */}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-blue-600 p-6 rounded-[35px] text-center shadow-lg">
             <p className="text-blue-200 text-[9px] font-black uppercase mb-1 tracking-widest">Faturamento Mês</p>
@@ -285,16 +318,16 @@ export default function AdminCentral() {
                     {dia.getDate()}
                     {temVenda && (
                       <div className="hidden group-hover:block absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-slate-800 border border-slate-700 p-3 rounded-xl shadow-2xl z-50 pointer-events-none">
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-800"></div>
-                        <p className="text-[9px] text-slate-400 uppercase font-bold mb-2 text-center border-b border-slate-700 pb-1">{format(dia, "dd 'de' MMM", { locale: ptBR })}</p>
-                        <div className="space-y-2">
-                          {vendasDoDia.map(venda => (
-                            <div key={venda.id} className="flex justify-between items-center text-[9px]">
-                              <span className="text-blue-400 font-bold truncate max-w-[80px]">{venda.vendedores?.nome || 'Admin'}</span>
-                              <span className="text-white font-medium">{formatCurrency(Number(venda.valor_venda))}</span>
-                            </div>
-                          ))}
-                        </div>
+                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-800"></div>
+                         <p className="text-[9px] text-slate-400 uppercase font-bold mb-2 text-center border-b border-slate-700 pb-1">{format(dia, "dd 'de' MMM", { locale: ptBR })}</p>
+                         <div className="space-y-2">
+                           {vendasDoDia.map(venda => (
+                             <div key={venda.id} className="flex justify-between items-center text-[9px]">
+                               <span className="text-blue-400 font-bold truncate max-w-[80px]">{venda.vendedores?.nome || 'Admin'}</span>
+                               <span className="text-white font-medium">{formatCurrency(Number(venda.valor_venda))}</span>
+                             </div>
+                           ))}
+                         </div>
                       </div>
                     )}
                   </div>
@@ -304,9 +337,9 @@ export default function AdminCentral() {
           </div>
         </div>
 
-        {/* COLUNA 2: LISTA LEADS */}
+        {/* LISTA LEADS */}
         <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-[40px] p-6 h-full">
-           <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6 italic">Monitoramento de Leads</h2>
+           <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6 italic">Monitoramento</h2>
            <div className="space-y-3">
               {leads.map(l => (
                 <div key={l.id} className="bg-slate-950 p-4 rounded-[30px] border border-slate-800 flex justify-between items-center">
@@ -323,7 +356,7 @@ export default function AdminCentral() {
            </div>
         </div>
 
-        {/* COLUNA 3: LOGS */}
+        {/* LOGS */}
         <div className="lg:col-span-1 bg-slate-900 border border-slate-800 rounded-[40px] p-6">
           <h2 className="text-[10px] font-black uppercase text-slate-500 mb-6 italic text-center">Logs</h2>
           <div className="space-y-4">
