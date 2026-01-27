@@ -1,85 +1,68 @@
 'use client'
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { Toast } from '@/components/Toast'; // Agora vai funcionar!
+import { NumericFormat } from 'react-number-format';
 
 export default function NovoLead() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  // Estado para controlar a notificação
-  const [toast, setToast] = useState({ msg: '', type: 'success' as 'success' | 'error' });
+  const [vendedorId, setVendedorId] = useState('');
   
-  const [formData, setFormData] = useState({
-    nome_cliente: '',
-    telefone: '',
-    valor_venda: '',
-    obs: ''
-  });
+  const [nome, setNome] = useState('');
+  const [telefone, setTelefone] = useState('');
+  const [valor, setValor] = useState('');
+  const [status, setStatus] = useState<'novo' | 'fechado'>('novo'); 
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setVendedorId(data.user.id);
+      else router.push('/');
+    });
+  }, [router]);
+
+  async function handleSalvar() {
+    if (!vendedorId) return alert("Carregando perfil...");
+    if (!nome) return alert("Nome é obrigatório!");
+    if (status === 'fechado' && !valor) return alert("Informe o valor da venda!");
+
     setLoading(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      setToast({ msg: 'Erro: Faça login novamente.', type: 'error' });
-      setLoading(false);
-      return;
-    }
-
-    // Remove R$ e pontos para salvar como numero
-    const valorLimpo = formData.valor_venda.toString().replace('R$', '').replace(/\./g, '').replace(',', '.');
-    const valorFinal = parseFloat(valorLimpo) || 0;
+    let valorNumerico = 0;
+    if (valor) valorNumerico = parseFloat(valor.replace('R$', '').replace('.', '').replace(',', '.').trim());
 
     const { error } = await supabase.from('leads').insert([{
-      vendedor_id: user.id,
-      nome_cliente: formData.nome_cliente,
-      telefone: formData.telefone,
-      valor_venda: valorFinal,
-      obs: formData.obs,
-      status: 'aberto'
+      vendedor_id: vendedorId,
+      nome_cliente: nome,
+      telefone: telefone,
+      valor_venda: isNaN(valorNumerico) ? 0 : valorNumerico,
+      status: status 
     }]);
 
-    if (error) {
-      setToast({ msg: 'Erro ao salvar venda.', type: 'error' });
-    } else {
-      setToast({ msg: 'Venda registrada com sucesso! 🚀', type: 'success' });
-      setFormData({ nome_cliente: '', telefone: '', valor_venda: '', obs: '' });
-    }
+    if (error) { alert("Erro ao salvar: " + error.message); } 
+    else { alert(status === 'fechado' ? "Parabéns pela venda!" : "Lead cadastrado!"); router.push('/vendedor'); }
     setLoading(false);
-  };
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 font-sans relative">
-      {/* Aqui está o componente visual */}
-      <Toast message={toast.msg} type={toast.type} onClose={() => setToast({ ...toast, msg: '' })} />
-
-      <div className="flex justify-between items-center mb-8">
-        <button onClick={() => router.back()} className="text-blue-600 font-black text-xs uppercase tracking-widest">← Voltar</button>
-        <h1 className="text-xl font-black italic text-slate-900 uppercase">Novo Registro</h1>
-      </div>
-
-      <div className="max-w-md mx-auto bg-white p-8 rounded-[40px] shadow-xl border border-slate-100">
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="min-h-screen bg-slate-50 p-6 font-sans flex flex-col justify-center">
+      <div className="max-w-md mx-auto w-full bg-white p-8 rounded-[40px] shadow-2xl">
+        <button onClick={() => router.back()} className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">← Cancelar</button>
+        <h1 className="text-2xl font-black italic text-slate-900 mb-2 uppercase">Novo Registro</h1>
+        <div className="flex bg-slate-100 p-1 rounded-2xl mb-6">
+            <button onClick={() => setStatus('novo')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${status === 'novo' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>📝 Lead</button>
+            <button onClick={() => setStatus('fechado')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${status === 'fechado' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400'}`}>💰 Venda</button>
+        </div>
+        <div className="space-y-4">
+          <div><label className="text-[10px] font-black text-slate-400 uppercase ml-3">Cliente *</label><input type="text" className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl font-bold text-slate-800" value={nome} onChange={e => setNome(e.target.value)} /></div>
+          <div><label className="text-[10px] font-black text-slate-400 uppercase ml-3">Contato</label><input type="text" className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl font-bold text-slate-800" value={telefone} onChange={e => setTelefone(e.target.value)} /></div>
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-4 mb-1 block">Cliente</label>
-            <input type="text" required className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl text-sm font-bold outline-none focus:border-blue-500 transition-all" value={formData.nome_cliente} onChange={e => setFormData({...formData, nome_cliente: e.target.value})} />
+            <label className={`text-[10px] font-black uppercase ml-3 ${status === 'fechado' ? 'text-emerald-600' : 'text-slate-400'}`}>{status === 'fechado' ? 'Valor *' : 'Valor Estimado'}</label>
+            <NumericFormat className={`w-full bg-slate-50 border p-4 rounded-2xl font-bold outline-none ${status === 'fechado' ? 'border-emerald-200 text-emerald-700' : 'border-slate-200 text-slate-800'}`} placeholder="R$ 0,00" thousandSeparator="." decimalSeparator="," prefix="R$ " allowNegative={false} value={valor} onChange={e => setValor(e.target.value)} />
           </div>
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-4 mb-1 block">WhatsApp</label>
-            <input type="text" required placeholder="(13) 99999-9999" className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl text-sm font-bold outline-none focus:border-blue-500 transition-all" value={formData.telefone} onChange={e => setFormData({...formData, telefone: e.target.value})} />
-          </div>
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-4 mb-1 block">Valor (R$)</label>
-            <input type="text" required placeholder="0,00" className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl text-sm font-bold outline-none focus:border-blue-500 transition-all" value={formData.valor_venda} onChange={e => setFormData({...formData, valor_venda: e.target.value})} />
-          </div>
-          <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-lg shadow-blue-200 mt-6 disabled:opacity-50">
-            {loading ? 'Salvando...' : 'Registrar Venda 🔥'}
-          </button>
-        </form>
+          <button onClick={handleSalvar} disabled={loading} className={`w-full p-4 rounded-2xl font-black uppercase tracking-widest text-white shadow-xl mt-4 ${status === 'fechado' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-blue-600 hover:bg-blue-700'}`}>{loading ? '...' : (status === 'fechado' ? 'CONFIRMAR' : 'SALVAR')}</button>
+        </div>
       </div>
     </div>
   );
