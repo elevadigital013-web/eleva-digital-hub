@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { AutoMotivation } from '@/components/AutoMotivation';
+
+// ... dentro do seu return
+<AutoMotivation />
 
 export default function GestaoVendedores() {
   const [email, setEmail] = useState('');
