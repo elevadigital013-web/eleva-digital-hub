@@ -104,14 +104,16 @@ export default function AdminCentral() {
   useEffect(() => { loadData(); }, []);
 
   const salvarCurso = async () => {
-    if (!novoCurso.titulo || !novoCurso.link) {
-      setToast({ msg: 'Preencha Título e Vídeo!', type: 'error' });
+    // NOVA VALIDAÇÃO:
+    // Precisa de Título E (Vídeo OU PDF). Se ambos os links estiverem vazios, dá erro.
+    if (!novoCurso.titulo || (!novoCurso.link && !novoCurso.pdf)) {
+      setToast({ msg: 'Preencha o Título e pelo menos um Link (Vídeo ou PDF)!', type: 'error' });
       return;
     }
 
     const { error } = await supabase.from('cursos').insert([{
       titulo: novoCurso.titulo,
-      link_video: novoCurso.link,
+      link_video: novoCurso.link,      // Pode ir vazio agora
       link_material: novoCurso.pdf 
     }]);
     
@@ -119,11 +121,12 @@ export default function AdminCentral() {
       console.error(error);
       setToast({ msg: 'Erro ao salvar. Verifique o Banco.', type: 'error' });
     } else {
-      setToast({ msg: 'Aula e Material Salvos! 🎓', type: 'success' });
-      setNovoCurso({ titulo: '', link: '', pdf: '' });
+      setToast({ msg: 'Conteúdo Salvo com Sucesso! 🎓', type: 'success' });
+      setNovoCurso({ titulo: '', link: '', pdf: '' }); // Limpa os campos
+      carregarCursos(); // Atualiza a lista lá em baixo
     }
   };
-
+  
   // ABA DOCUMENTOS
   if (aba === 'docs') {
     return (
