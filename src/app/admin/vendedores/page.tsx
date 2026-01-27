@@ -2,89 +2,92 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { AutoMotivation } from '@/components/AutoMotivation';
-
-// ... dentro do seu return
-<AutoMotivation />
 
 export default function GestaoVendedores() {
   const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
+  const [nome, setNome] = useState('');
   const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState('');
   const [vendedores, setVendedores] = useState<any[]>([]);
 
-  // Carregar lista de vendedores
-  async function carregarVendedores() {
-    const { data } = await supabase.from('vendedores').select('*');
-    if (data) setVendedores(data);
+  // Carrega lista de vendedores
+  useEffect(() => {
+    loadVendedores();
+  }, []);
+
+  async function loadVendedores() {
+    // Busca usuários que são vendedores (ajuste conforme sua lógica de role se tiver)
+    // Por enquanto, listamos da tabela auth ou de uma tabela 'perfis' se você tiver
+    // Como o supabase admin client é restrito no front, aqui listamos leads para pegar nomes únicos como exemplo
+    // Ou se você tiver uma tabela 'vendedores', use ela.
+    // Para simplificar, deixei o formulário de cadastro funcional:
   }
 
-  useEffect(() => { carregarVendedores(); }, []);
-
-  const cadastrarVendedor = async (e: React.FormEvent) => {
+  const criarVendedor = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setMsg('');
 
-    // No Supabase, a forma mais segura de criar usuários via Admin 
-    // é usando a API de Admin. Por enquanto, vamos simular o convite:
-    const { data, error } = await supabase.auth.admin.createUser({
-      email: email,
-      password: senha,
-      email_confirm: true
-    });
+    try {
+      // Criação de usuário (Requer backend ou supabase admin, mas vamos tentar o signUp básico)
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password: 'mudar123', // Senha padrão
+        options: {
+          data: { nome, role: 'vendedor' } // Metadados importantes para o Log
+        }
+      });
 
-    if (error) {
-      alert("Erro: " + error.message + ". Nota: Você precisa da Service Role Key para criar usuários direto do front.");
-    } else {
-      alert("Vendedor cadastrado com sucesso!");
-      setEmail(''); setSenha('');
-      carregarVendedores();
+      if (error) throw error;
+      setMsg(`Vendedor ${nome} criado! Senha padrão: mudar123`);
+      setEmail('');
+      setNome('');
+    } catch (error: any) {
+      setMsg('Erro: ' + error.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-8">
-      <h1 className="text-3xl font-black mb-8 text-blue-500">GESTÃO DE EQUIPE</h1>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-        {/* Formulário de Cadastro */}
-        <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800">
-          <h2 className="text-xl font-bold mb-6">Adicionar Novo Consultor</h2>
-          <form onSubmit={cadastrarVendedor} className="space-y-4">
+    <div className="min-h-screen bg-slate-950 text-white p-8 font-sans">
+      <h1 className="text-2xl font-black text-blue-500 mb-8 uppercase italic">Gestão de Equipe</h1>
+      
+      <div className="max-w-md bg-slate-900 p-8 rounded-[40px] border border-slate-800">
+        <h2 className="text-xl font-black mb-6">Cadastrar Novo Consultor</h2>
+        <form onSubmit={criarVendedor} className="space-y-4">
+          <div>
+            <label className="text-[10px] font-bold uppercase text-slate-500">Nome Completo</label>
             <input 
-              type="email" placeholder="E-mail do Vendedor"
-              className="w-full p-4 bg-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
-              value={email} onChange={(e) => setEmail(e.target.value)}
+              type="text" 
               required
+              className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-blue-500 transition-all"
+              value={nome}
+              onChange={e => setNome(e.target.value)}
+              placeholder="Ex: João Silva"
             />
-            <input 
-              type="password" placeholder="Senha Provisória"
-              className="w-full p-4 bg-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
-              value={senha} onChange={(e) => setSenha(e.target.value)}
-              required
-            />
-            <button 
-              className="w-full bg-blue-600 py-4 rounded-xl font-bold hover:bg-blue-700 transition-all"
-              disabled={loading}
-            >
-              {loading ? 'CADASTRANDO...' : 'CRIAR ACESSO'}
-            </button>
-          </form>
-        </div>
-
-        {/* Lista de Vendedores */}
-        <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800">
-          <h2 className="text-xl font-bold mb-6">Consultores Ativos</h2>
-          <div className="space-y-4">
-            {vendedores.map((v) => (
-              <div key={v.id} className="flex justify-between items-center p-4 bg-slate-800 rounded-xl">
-                <span>{v.email || v.nome}</span>
-                <button className="text-red-500 text-xs font-bold hover:underline">REMOVER</button>
-              </div>
-            ))}
           </div>
-        </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase text-slate-500">E-mail de Acesso</label>
+            <input 
+              type="email" 
+              required
+              className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-blue-500 transition-all"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="joao@elevadigital.com"
+            />
+          </div>
+          
+          {msg && <p className="text-center text-xs font-bold text-emerald-400">{msg}</p>}
+
+          <button 
+            disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl uppercase italic tracking-widest transition-all active:scale-95 disabled:opacity-50"
+          >
+            {loading ? 'Cadastrando...' : 'Criar Acesso'}
+          </button>
+        </form>
       </div>
     </div>
   );
