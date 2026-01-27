@@ -1,5 +1,9 @@
 'use client'
 
+// --- ESTA LINHA ABAIXO É A QUE FALTAVA ---
+import { useEffect, useState } from 'react'; 
+// -----------------------------------------
+
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -33,13 +37,13 @@ interface Log {
   vendedores?: Vendedor;
 }
 
-// 1. Nova interface criada para os Cursos
+// Interface para os Cursos
 interface Curso {
   id: number;
   created_at: string;
   titulo: string;
-  link_video?: string;   // Opcional (pode ser nulo)
-  link_material?: string; // Opcional
+  link_video?: string;   
+  link_material?: string; 
 }
 
 export default function AdminCentral() {
@@ -53,7 +57,7 @@ export default function AdminCentral() {
   
   const [toast, setToast] = useState({ msg: '', type: 'success' as 'success' | 'error' });
 
-  // 2. Agora usamos o tipo Curso[] em vez de any[]
+  // Lista de cursos com tipagem correta
   const [listaCursos, setListaCursos] = useState<Curso[]>([]);
 
   // Função para carregar as aulas do banco
