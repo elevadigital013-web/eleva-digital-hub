@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { NumericFormat } from 'react-number-format';
-import { Toast } from '@/components/Toast'; // Importamos o Toast bonito
+import { Toast } from '@/components/Toast';
 
-// Função auxiliar interna para formatação
+// Função auxiliar para formatar moeda (evita erros de importação)
 const formatarMoeda = (valor: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
 };
@@ -17,10 +17,10 @@ export default function NovoLead() {
   const [vendedorId, setVendedorId] = useState('');
   const [vendedorNome, setVendedorNome] = useState('');
   
-  // ESTADO PARA A NOTIFICAÇÃO (TOAST)
+  // Estado para a notificação (Toast)
   const [toast, setToast] = useState({ msg: '', type: 'success' as 'success' | 'error' | '' });
 
-  // ESTADOS DO FORMULÁRIO
+  // Estados do formulário
   const [nome, setNome] = useState('');
   const [telefone, setTelefone] = useState('');
   const [valor, setValor] = useState('');
@@ -40,6 +40,7 @@ export default function NovoLead() {
   }, [router]);
 
   async function handleSalvar() {
+    // 1. Validações visuais (sem alert feio)
     if (!nome) {
         setToast({ msg: "O nome do cliente é obrigatório!", type: 'error' });
         return;
@@ -55,7 +56,7 @@ export default function NovoLead() {
       ? parseFloat(valor.replace('R$', '').replace('.', '').replace(',', '.').trim()) 
       : 0;
 
-    // 1. SALVAR O LEAD
+    // 2. Salvar o Lead no Banco
     const { error: leadError } = await supabase.from('leads').insert([{
       vendedor_id: vendedorId,
       nome_cliente: nome,
@@ -66,12 +67,12 @@ export default function NovoLead() {
 
     if (leadError) {
       console.error(leadError);
-      setToast({ msg: "Erro ao salvar no sistema.", type: 'error' });
+      setToast({ msg: "Erro ao salvar. Verifique sua conexão.", type: 'error' });
       setLoading(false);
       return;
     }
 
-    // 2. CRIAR O LOG
+    // 3. Criar o Log de Atividade
     let acaoLog = '';
     if (status === 'fechado') {
         acaoLog = `fechou venda de ${formatarMoeda(valorNumerico)} com: ${nome}`;
@@ -86,14 +87,14 @@ export default function NovoLead() {
         valor: valorNumerico
     }]);
 
-    // MENSAGEM DE SUCESSO E REDIRECIONAMENTO SUAVE
+    // 4. Sucesso e Redirecionamento
     if (status === 'fechado') {
         setToast({ msg: "Venda registrada! Parabéns! 🚀", type: 'success' });
     } else {
         setToast({ msg: "Lead cadastrado com sucesso! 📝", type: 'success' });
     }
     
-    // Espera 2 segundos para o usuário ler a mensagem antes de sair
+    // Aguarda 2 segundos para ler a mensagem e volta pro painel
     setTimeout(() => {
         router.push('/vendedor');
     }, 2000);
@@ -102,7 +103,7 @@ export default function NovoLead() {
   return (
     <div className="min-h-screen bg-slate-50 p-6 font-sans flex flex-col justify-center relative">
       
-      {/* AQUI ESTÁ O COMPONENTE DE MENSAGEM BONITA */}
+      {/* Componente de Mensagem Bonita */}
       {toast.msg && (
         <Toast 
             message={toast.msg} 
@@ -115,7 +116,7 @@ export default function NovoLead() {
         <button onClick={() => router.back()} className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 hover:text-blue-600">← Cancelar</button>
         <h1 className="text-2xl font-black italic text-slate-900 mb-2 uppercase">Novo Registro</h1>
         
-        {/* SELETOR */}
+        {/* Seletor de Status */}
         <div className="flex bg-slate-100 p-1 rounded-2xl mb-6 mt-6">
             <button onClick={() => setStatus('novo')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${status === 'novo' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>📝 Apenas Lead</button>
             <button onClick={() => setStatus('fechado')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${status === 'fechado' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400'}`}>💰 Venda Fechada</button>

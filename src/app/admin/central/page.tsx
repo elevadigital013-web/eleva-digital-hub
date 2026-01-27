@@ -17,7 +17,6 @@ interface ComentarioAdmin { id: number; created_at: string; nome_usuario: string
 
 export default function AdminCentral() {
   const router = useRouter();
-  // REMOVIDA A ABA 'DOCS' DAQUI (POIS É UMA PÁGINA SEPARADA)
   const [aba, setAba] = useState<'dashboard' | 'cursos' | 'avaliacoes'>('dashboard');
   const [toast, setToast] = useState({ msg: '', type: 'success' as 'success' | 'error' });
 
@@ -73,7 +72,6 @@ export default function AdminCentral() {
   async function alternarStatusLead(lead: Lead) {
     if (updatingLead) return;
     const novoStatus = lead.status === 'fechado' ? 'novo' : 'fechado';
-    // Substituindo o confirm nativo feio por Toast seria ideal, mas aqui mantemos lógica rápida
     if (!confirm(`Alterar status para ${novoStatus.toUpperCase()}?`)) return;
     
     setUpdatingLead(lead.id);
@@ -127,7 +125,7 @@ export default function AdminCentral() {
           <button onClick={() => setAba('cursos')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${aba === 'cursos' ? 'bg-purple-600' : 'bg-slate-900 border border-slate-800'}`}>Academy</button>
           <button onClick={() => setAba('avaliacoes')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${aba === 'avaliacoes' ? 'bg-amber-600' : 'bg-slate-900 border border-slate-800'}`}>Moderação</button>
           
-          {/* BOTÃO DOCS AGORA É UM LINK PARA A PÁGINA SEPARADA */}
+          {/* BOTÃO DOCS LINK */}
           <button 
             onClick={() => router.push('/admin/central/docs')} 
             className="px-4 py-2 rounded-xl text-[10px] font-black uppercase bg-emerald-900/30 text-emerald-500 border border-emerald-900 hover:bg-emerald-900 hover:text-white transition-all"
@@ -141,7 +139,7 @@ export default function AdminCentral() {
       {aba === 'dashboard' && (
           <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
             
-            {/* Esquerda: Faturamento e Ranking */}
+            {/* Esquerda: Faturamento, Ranking e Calendário */}
             <div className="lg:col-span-1 space-y-6">
               <div className="bg-blue-600 p-6 rounded-[35px] text-center shadow-lg">
                 <p className="text-blue-200 text-[9px] font-black uppercase mb-1 tracking-widest">Faturamento Mês</p>
@@ -164,13 +162,34 @@ export default function AdminCentral() {
                  </div>
               </div>
               
-              {/* Calendário Simplificado */}
-              <div className="bg-slate-900 border border-slate-800 rounded-[35px] p-6 shadow-2xl">
+              {/* Calendário COM HOVER FUNCIONAL */}
+              <div className="bg-slate-900 border border-slate-800 rounded-[35px] p-6 shadow-2xl overflow-visible">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-blue-500 mb-6 text-center italic">Atividade Diária</h3>
                 <div className="grid grid-cols-7 gap-2">
                   {eachDayOfInterval({ start: startOfMonth(new Date()), end: endOfMonth(new Date()) }).map(dia => {
-                    const ativo = leads.some(l => isSameDay(new Date(l.created_at), dia) && l.status === 'fechado');
-                    return (<div key={dia.toString()} className={`w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black ${ativo ? 'bg-blue-600 text-white' : 'bg-slate-950 text-slate-800 border border-slate-800/50'}`}>{dia.getDate()}</div>);
+                    const vendasDoDia = leads.filter(l => isSameDay(new Date(l.created_at), dia) && l.status === 'fechado');
+                    const temVenda = vendasDoDia.length > 0;
+                    return (
+                      <div key={dia.toString()} className={`group relative w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black cursor-pointer transition-all hover:scale-110 ${temVenda ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/40' : 'bg-slate-950 text-slate-800 border border-slate-800/50'}`}>
+                        {dia.getDate()}
+                        
+                        {/* BALÃO FLUTUANTE (TOOLTIP) */}
+                        {temVenda && (
+                          <div className="hidden group-hover:block absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-slate-800 border border-slate-700 p-3 rounded-xl shadow-2xl z-50 pointer-events-none">
+                             <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-800"></div>
+                             <p className="text-[9px] text-slate-400 uppercase font-bold mb-2 text-center border-b border-slate-700 pb-1">{format(dia, "dd 'de' MMM", { locale: ptBR })}</p>
+                             <div className="space-y-1">
+                               {vendasDoDia.map(venda => (
+                                 <div key={venda.id} className="flex justify-between items-center text-[9px]">
+                                   <span className="text-blue-400 font-bold truncate max-w-[80px]">{venda.vendedores?.nome || 'Admin'}</span>
+                                   <span className="text-white font-medium">{formatCurrency(Number(venda.valor_venda))}</span>
+                                 </div>
+                               ))}
+                             </div>
+                          </div>
+                        )}
+                      </div>
+                    );
                   })}
                 </div>
               </div>
@@ -179,7 +198,7 @@ export default function AdminCentral() {
             {/* Centro: Monitoramento Interativo */}
             <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-[40px] p-6 h-full">
                <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6 italic">Monitoramento de Leads (Clique para alterar)</h2>
-               <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+               <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                   {leads.map(l => (
                     <div key={l.id} className="bg-slate-950 p-4 rounded-[30px] border border-slate-800 flex justify-between items-center hover:border-blue-900 transition-colors">
                       <div>
@@ -205,7 +224,7 @@ export default function AdminCentral() {
             {/* Direita: Logs com Botão de Apagar */}
             <div className="lg:col-span-1 bg-slate-900 border border-slate-800 rounded-[40px] p-6">
               <h2 className="text-[10px] font-black uppercase text-slate-500 mb-6 italic text-center">Logs</h2>
-              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                 {logs.length === 0 && <p className="text-center text-xs text-slate-500">Nenhum log.</p>}
                 {logs.map(log => (
                    <div key={log.id} className="border-l-2 border-slate-800 pl-3 py-1 flex justify-between items-start group hover:bg-slate-800/30 rounded-r-lg transition-colors">
@@ -238,7 +257,7 @@ export default function AdminCentral() {
           <div className="space-y-4">
              <h2 className="text-xl font-black italic mb-6 text-center uppercase text-slate-500">Aulas Ativas</h2>
              {listaCursos.map(curso => (
-               <div key={curso.id} className="bg-slate-900 border border-slate-800 p-4 rounded-3xl flex justify-between items-center">
+               <div key={curso.id} className="bg-slate-900 border border-slate-800 p-4 rounded-3xl flex justify-between items-center hover:border-purple-900 transition-colors">
                   <div className="overflow-hidden"><p className="font-bold text-sm truncate max-w-[200px]">{curso.titulo}</p></div>
                   <button onClick={() => deletarCurso(curso.id)} className="bg-slate-950 text-slate-500 hover:text-red-500 w-10 h-10 rounded-full flex items-center justify-center">🗑️</button>
                </div>
