@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { formatCurrency } from '@/lib/utils';
 import { AutoMotivation } from '@/components/AutoMotivation';
 
-// BANCO DE FRASES COMPLETO
+// BANCO DE FRASES COMPLETO (FIXO)
 const FRASES_MOTIVACIONAIS = [
   "O único lugar onde o sucesso vem antes do trabalho é no dicionário.",
   "Você é do tamanho dos seus sonhos. Voe alto!",
@@ -31,44 +31,58 @@ export default function VendedorDashboard() {
   const router = useRouter();
   const [stats, setStats] = useState({ vendas: 0, comissao: 0, leads: 0 });
   const [vendedorNome, setVendedorNome] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
+      // 1. Verifica quem está logado
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/'); return; }
       
       setVendedorNome(user.user_metadata?.nome || 'Consultor');
 
-      const { data: leads } = await supabase.from('leads').select('*').eq('vendedor_id', user.id);
+      // 2. Busca APENAS os leads deste vendedor (Filtro de Segurança Ativo)
+      const { data: leads, error } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('vendedor_id', user.id); // <--- ESTA É A TRAVA DE SEGURANÇA
+
+      if (error) {
+        console.error("Erro ao buscar leads:", error);
+      }
+
       if (leads) {
         let v = 0, c = 0;
         leads.forEach(l => {
           if (l.status === 'fechado') {
             const valor = Number(l.valor_venda) || 0;
             v += valor;
+            // Regra de comissão: 25% se venda >= 5000, senão 20%
             const perc = valor >= 5000 ? 0.25 : 0.20;
+            // Só conta comissão se ainda não foi pago (campo 'pago' false ou null)
             if (!l.pago) c += (valor * perc);
           }
         });
         setStats({ vendas: v, comissao: c, leads: leads.length });
       }
+      setLoading(false);
     }
     loadData();
   }, [router]);
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 font-sans">
-      {/* COMPONENTE DE MOTIVAÇÃO - AGORA COM AS FRASES CERTAS */}
+      {/* MOTIVAÇÃO AUTOMÁTICA */}
       <AutoMotivation phrases={FRASES_MOTIVACIONAIS} />
 
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-black italic text-slate-900 tracking-tighter">
-            Olá, <span className="text-blue-600">{vendedorNome}</span>
+            Olá, <span className="text-blue-600">{loading ? '...' : vendedorNome}</span>
           </h1>
           <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Painel de Performance</p>
         </div>
-        <button onClick={() => supabase.auth.signOut().then(() => router.push('/'))} className="bg-white p-3 rounded-full shadow-sm text-red-500 border border-slate-100">
+        <button onClick={() => supabase.auth.signOut().then(() => router.push('/'))} className="bg-white p-3 rounded-full shadow-sm text-red-500 border border-slate-100 hover:bg-red-50 transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3-3l3-3m0 0l-3-3m3 3H9" /></svg>
         </button>
       </div>
@@ -78,12 +92,23 @@ export default function VendedorDashboard() {
         <div className="bg-slate-900 p-8 rounded-[40px] text-white shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/30 blur-[60px] rounded-full"></div>
           <p className="text-blue-400 text-[10px] font-black uppercase tracking-widest mb-1 italic">Total Vendido</p>
-          <p className="text-4xl font-black tracking-tighter">{formatCurrency(stats.vendas)}</p>
+          <p className="text-4xl font-black tracking-tighter">
+            {loading ? '...' : formatCurrency(stats.vendas)}
+          </p>
         </div>
         
         <div className="bg-amber-500 p-8 rounded-[40px] text-slate-900 shadow-lg shadow-amber-500/20">
           <p className="text-amber-900 text-[10px] font-black uppercase tracking-widest mb-1 italic">Comissão a Receber</p>
-          <p className="text-4xl font-black tracking-tighter">{formatCurrency(stats.comissao)}</p>
+          <p className="text-4xl font-black tracking-tighter">
+             {loading ? '...' : formatCurrency(stats.comissao)}
+          </p>
+        </div>
+
+        <div className="bg-white p-8 rounded-[40px] text-slate-900 shadow-sm border border-slate-100">
+          <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1 italic">Meus Leads</p>
+          <p className="text-4xl font-black tracking-tighter text-blue-600">
+             {loading ? '...' : stats.leads}
+          </p>
         </div>
       </div>
 
@@ -116,6 +141,16 @@ export default function VendedorDashboard() {
           </div>
           <span className="text-4xl font-light group-hover:rotate-90 transition-transform">＋</span>
         </button>
+        
+        {/* CARD MEUS LEADS (Link para lista detalhada se houver) */}
+        {stats.leads > 0 && (
+           <button 
+             className="w-full bg-white text-slate-600 p-4 rounded-[30px] border border-slate-200 text-xs font-bold uppercase hover:bg-slate-50 transition-colors"
+             onClick={() => alert("Funcionalidade de ver lista detalhada em breve.")}
+           >
+             Ver lista completa de clientes
+           </button>
+        )}
       </div>
     </div>
   );
