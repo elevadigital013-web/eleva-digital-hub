@@ -1,3 +1,5 @@
+'use client'
+
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
