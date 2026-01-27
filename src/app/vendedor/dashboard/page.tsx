@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { formatCurrency } from '@/lib/utils';
 import { AutoMotivation } from '@/components/AutoMotivation';
 
-// BANCO DE FRASES COMPLETO (FIXO)
 const FRASES_MOTIVACIONAIS = [
   "O único lugar onde o sucesso vem antes do trabalho é no dicionário.",
   "Você é do tamanho dos seus sonhos. Voe alto!",
@@ -29,41 +28,56 @@ const FRASES_MOTIVACIONAIS = [
 
 export default function VendedorDashboard() {
   const router = useRouter();
-  const [stats, setStats] = useState({ vendas: 0, comissao: 0, leads: 0 });
+  
+  // ATUALIZADO: Agora contamos fechados e abertos separadamente
+  const [stats, setStats] = useState({ 
+    valorVendido: 0, 
+    comissao: 0, 
+    qtdFechado: 0, 
+    qtdAberto: 0 
+  });
+  
   const [vendedorNome, setVendedorNome] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
-      // 1. Verifica quem está logado
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/'); return; }
       
       setVendedorNome(user.user_metadata?.nome || 'Consultor');
 
-      // 2. Busca APENAS os leads deste vendedor (Filtro de Segurança Ativo)
       const { data: leads, error } = await supabase
         .from('leads')
         .select('*')
-        .eq('vendedor_id', user.id); // <--- ESTA É A TRAVA DE SEGURANÇA
-
-      if (error) {
-        console.error("Erro ao buscar leads:", error);
-      }
+        .eq('vendedor_id', user.id);
 
       if (leads) {
-        let v = 0, c = 0;
+        let valorTotal = 0;
+        let comissaoTotal = 0;
+        let fechados = 0;
+        let abertos = 0;
+
         leads.forEach(l => {
           if (l.status === 'fechado') {
-            const valor = Number(l.valor_venda) || 0;
-            v += valor;
-            // Regra de comissão: 25% se venda >= 5000, senão 20%
-            const perc = valor >= 5000 ? 0.25 : 0.20;
-            // Só conta comissão se ainda não foi pago (campo 'pago' false ou null)
-            if (!l.pago) c += (valor * perc);
+            fechados++; // Conta venda fechada
+            const v = Number(l.valor_venda) || 0;
+            valorTotal += v;
+            
+            // Calcula comissão
+            const perc = v >= 5000 ? 0.25 : 0.20;
+            if (!l.pago) comissaoTotal += (v * perc);
+          } else {
+            abertos++; // Conta lead em aberto
           }
         });
-        setStats({ vendas: v, comissao: c, leads: leads.length });
+
+        setStats({ 
+            valorVendido: valorTotal, 
+            comissao: comissaoTotal, 
+            qtdFechado: fechados, 
+            qtdAberto: abertos 
+        });
       }
       setLoading(false);
     }
@@ -72,7 +86,6 @@ export default function VendedorDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 font-sans">
-      {/* MOTIVAÇÃO AUTOMÁTICA */}
       <AutoMotivation phrases={FRASES_MOTIVACIONAIS} />
 
       <div className="flex justify-between items-center mb-8">
@@ -87,16 +100,18 @@ export default function VendedorDashboard() {
         </button>
       </div>
 
-      {/* CARDS FINANCEIROS */}
+      {/* CARDS FINANCEIROS E ESTATÍSTICOS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        {/* CARD 1: VALOR TOTAL */}
         <div className="bg-slate-900 p-8 rounded-[40px] text-white shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/30 blur-[60px] rounded-full"></div>
           <p className="text-blue-400 text-[10px] font-black uppercase tracking-widest mb-1 italic">Total Vendido</p>
           <p className="text-4xl font-black tracking-tighter">
-            {loading ? '...' : formatCurrency(stats.vendas)}
+            {loading ? '...' : formatCurrency(stats.valorVendido)}
           </p>
         </div>
         
+        {/* CARD 2: COMISSÃO */}
         <div className="bg-amber-500 p-8 rounded-[40px] text-slate-900 shadow-lg shadow-amber-500/20">
           <p className="text-amber-900 text-[10px] font-black uppercase tracking-widest mb-1 italic">Comissão a Receber</p>
           <p className="text-4xl font-black tracking-tighter">
@@ -104,17 +119,32 @@ export default function VendedorDashboard() {
           </p>
         </div>
 
-        <div className="bg-white p-8 rounded-[40px] text-slate-900 shadow-sm border border-slate-100">
-          <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1 italic">Meus Leads</p>
-          <p className="text-4xl font-black tracking-tighter text-blue-600">
-             {loading ? '...' : stats.leads}
-          </p>
+        {/* CARD 3: PLACAR (VENDAS vs LEADS) - AGORA SEPARADO */}
+        <div className="bg-white p-6 rounded-[40px] text-slate-900 shadow-sm border border-slate-100 flex gap-4">
+          
+          {/* Lado Esquerdo: Vendas Fechadas */}
+          <div className="flex-1 bg-emerald-50 rounded-3xl flex flex-col items-center justify-center p-2 border border-emerald-100">
+             <span className="text-2xl">🏆</span>
+             <p className="text-3xl font-black text-emerald-600 leading-none mt-1">
+               {loading ? '-' : stats.qtdFechado}
+             </p>
+             <p className="text-[8px] font-black uppercase text-emerald-400 mt-1">Fechadas</p>
+          </div>
+
+          {/* Lado Direito: Leads em Aberto */}
+          <div className="flex-1 bg-slate-50 rounded-3xl flex flex-col items-center justify-center p-2 border border-slate-200">
+             <span className="text-2xl">⏳</span>
+             <p className="text-3xl font-black text-slate-600 leading-none mt-1">
+               {loading ? '-' : stats.qtdAberto}
+             </p>
+             <p className="text-[8px] font-black uppercase text-slate-400 mt-1">Em Aberto</p>
+          </div>
+
         </div>
       </div>
 
       {/* ACESSO RÁPIDO */}
       <div className="space-y-4">
-        {/* CARD ACADEMY DESTAQUE */}
         <div 
           onClick={() => router.push('/vendedor/cursos')}
           className="bg-white border-2 border-blue-600 p-6 rounded-[35px] shadow-lg shadow-blue-100 flex items-center justify-between group active:scale-95 transition-all cursor-pointer relative overflow-hidden"
@@ -130,7 +160,6 @@ export default function VendedorDashboard() {
           <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all">→</div>
         </div>
 
-        {/* CARD NOVO LEAD */}
         <button 
           onClick={() => router.push('/vendedor/novo-lead')}
           className="w-full bg-blue-600 text-white p-8 rounded-[35px] shadow-xl shadow-blue-600/30 flex items-center justify-between active:scale-95 transition-all group"
@@ -141,16 +170,6 @@ export default function VendedorDashboard() {
           </div>
           <span className="text-4xl font-light group-hover:rotate-90 transition-transform">＋</span>
         </button>
-        
-        {/* CARD MEUS LEADS (Link para lista detalhada se houver) */}
-        {stats.leads > 0 && (
-           <button 
-             className="w-full bg-white text-slate-600 p-4 rounded-[30px] border border-slate-200 text-xs font-bold uppercase hover:bg-slate-50 transition-colors"
-             onClick={() => alert("Funcionalidade de ver lista detalhada em breve.")}
-           >
-             Ver lista completa de clientes
-           </button>
-        )}
       </div>
     </div>
   );
