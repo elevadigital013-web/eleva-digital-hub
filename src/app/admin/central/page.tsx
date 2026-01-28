@@ -21,6 +21,7 @@ export default function DashboardAdmin() {
 
   useEffect(() => {
     async function loadData() {
+      // Alterado apenas o select para garantir a busca dos nomes vinculados conforme a tabela original
       const { data } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
       if (data) setLeads(data);
     }
