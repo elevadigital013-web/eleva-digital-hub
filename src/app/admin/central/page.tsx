@@ -9,7 +9,7 @@ export default function AdminCentral() {
   const router = useRouter();
   const [leads, setLeads] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
-  const [feedbacksPendentes, setFeedbacksPendentes] = useState(0); // Contador de feedbacks
+  const [feedbacksPendentes, setFeedbacksPendentes] = useState(0);
 
   async function loadData() {
     // 1. Busca Leads
@@ -18,7 +18,7 @@ export default function AdminCentral() {
     // 2. Busca Logs
     const { data: g } = await supabase.from('logs_atividades').select('*').order('created_at', { ascending: false }).limit(10);
     
-    // 3. Busca contagem de feedbacks que ainda não foram respondidos
+    // 3. Busca contagem de feedbacks pendentes (sem resposta do admin)
     const { count } = await supabase
       .from('comentarios_academy')
       .select('*', { count: 'exact', head: true })
@@ -49,19 +49,26 @@ export default function AdminCentral() {
   return (
     <div className="min-h-screen bg-[#0b121e] text-white p-6 font-sans">
       
-      {/* HEADER COM MENU ATUALIZADO */}
-      <div className="flex justify-between items-center mb-8">
+      {/* CABEÇALHO COM BOTÕES DE NAVEGAÇÃO */}
+      <div className="max-w-7xl mx-auto flex flex-wrap gap-3 justify-between items-center mb-10">
         <h1 className="text-xl font-black italic text-[#00e5ff] uppercase leading-none">
           ELEVA <span className="text-white">CENTRAL</span>
         </h1>
         
-        <div className="flex gap-2 items-center">
-          <button className="bg-[#00e5ff] text-[#0b121e] px-4 py-2 rounded-xl text-[10px] font-black uppercase">Dashboard</button>
-          
-          {/* BOTÃO DE FEEDBACKS COM CONTADOR */}
+        <div className="flex flex-wrap gap-2 items-center">
+          <button 
+            onClick={() => router.push('/admin/central/vendedores_todos')}
+            className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase italic transition-all shadow-lg shadow-blue-600/20"
+          >
+            👥 Gestão de Equipe
+          </button>
+
+          <button onClick={() => router.push('/admin/central/academy')} className="text-[10px] font-black uppercase text-slate-500 hover:text-white px-3 transition-colors">Academy</button>
+          <button onClick={() => router.push('/admin/central/moderacao')} className="text-[10px] font-black uppercase text-slate-500 hover:text-white px-3 transition-colors">Moderação</button>
+
           <button 
             onClick={() => router.push('/admin/feedbacks')} 
-            className="relative bg-slate-800 text-slate-400 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:text-white transition-all flex items-center gap-2"
+            className="relative text-[10px] font-black uppercase text-slate-500 hover:text-white px-3 transition-colors flex items-center gap-2"
           >
             Feedbacks
             {feedbacksPendentes > 0 && (
@@ -71,28 +78,31 @@ export default function AdminCentral() {
             )}
           </button>
 
-          <button onClick={() => router.push('/admin/central/academy')} className="bg-slate-800 text-slate-400 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:text-white transition-all">Academy</button>
-          <button onClick={() => router.push('/admin/central/moderacao')} className="bg-slate-800 text-slate-400 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:text-white transition-all">Moderação</button>
-          <button onClick={() => router.push('/admin/central/docs')} className="bg-slate-800 text-slate-400 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:text-white tracking-widest transition-all">Docs</button>
-          <button onClick={() => router.push('/admin/central/contratos-equipe')} className="bg-orange-500/10 text-orange-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-orange-500 hover:text-white transition-all">Pasta Equipe</button>
+          <button 
+            onClick={() => router.push('/admin/central/docs')} 
+            className="bg-emerald-500/10 text-emerald-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-emerald-500 hover:text-white transition-all border border-emerald-500/20"
+          >
+            📂 Meus Docs
+          </button>
         </div>
       </div>
 
       <div className="grid grid-cols-12 gap-6">
         
-        {/* COLUNA 1: FINANCEIRO E RANKING */}
+        {/* COLUNA 1: FINANCEIRO, RANKING E AUDITORIA */}
         <div className="col-span-12 lg:col-span-3 space-y-6">
+          {/* Card Faturamento */}
           <div className="bg-[#00e5ff] p-8 rounded-[40px] shadow-lg shadow-[#00e5ff]/20">
             <p className="text-[10px] font-black text-[#0b121e] uppercase mb-1">Faturamento Total</p>
             <p className="text-4xl font-black text-[#0b121e] italic leading-tight">{formatCurrency(totalFaturamento)}</p>
           </div>
           
+          {/* Card Ranking */}
           <div className="bg-[#1e293b]/50 p-6 rounded-[35px] border border-slate-800 shadow-xl">
             <h3 className="text-[10px] font-black uppercase text-orange-500 mb-6 italic tracking-widest border-b border-orange-500/10 pb-2">🏆 Top 3 Performance</h3>
-            
             <div className="space-y-4">
               {ranking.length === 0 ? (
-                <p className="text-[10px] text-slate-500 italic text-center py-4">Aguardando primeiras vendas...</p>
+                <p className="text-[10px] text-slate-500 italic text-center py-4">Aguardando vendas...</p>
               ) : (
                 ranking.map((v, i) => (
                   <div key={v.nome} className="flex justify-between items-center group">
@@ -109,6 +119,7 @@ export default function AdminCentral() {
             </div>
           </div>
 
+          {/* Calendário Simplificado */}
           <div className="bg-[#1e293b]/50 p-6 rounded-[35px] border border-slate-800">
             <h3 className="text-[10px] font-black uppercase text-blue-400 mb-4 italic">Atividade Diária</h3>
             <div className="grid grid-cols-7 gap-2">
@@ -119,12 +130,26 @@ export default function AdminCentral() {
               ))}
             </div>
           </div>
+
+          {/* NOVO: CARD DE ATALHO PARA CONTRATOS DA EQUIPE */}
+          <div 
+            onClick={() => router.push('/admin/central/contratos_equipe')}
+            className="bg-[#1e293b] p-6 rounded-[35px] border border-slate-800 cursor-pointer hover:border-blue-500 transition-all group mt-6"
+          >
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-[10px] font-black uppercase text-blue-500 mb-1">Auditoria</p>
+                <h3 className="text-sm font-black text-white uppercase italic">Contratos da Equipe</h3>
+              </div>
+              <span className="text-2xl group-hover:scale-125 transition-transform">📄</span>
+            </div>
+          </div>
         </div>
 
-        {/* COLUNA 2: MONITORAMENTO */}
+        {/* COLUNA 2: MONITORAMENTO EM TEMPO REAL */}
         <div className="col-span-12 lg:col-span-6 bg-[#1e293b]/30 rounded-[40px] p-8 border border-slate-800">
           <h2 className="text-[10px] font-black uppercase text-slate-500 mb-6 italic tracking-widest">Monitoramento em Tempo Real</h2>
-          <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="space-y-4 max-h-[650px] overflow-y-auto pr-2 custom-scrollbar">
             {leads.length === 0 && <p className="text-center text-slate-600 italic py-20 text-xs">Nenhum lead registrado.</p>}
             {leads.map(lead => (
               <div key={lead.id} className="bg-[#0b121e] p-6 rounded-[40px] border border-slate-800 flex justify-between items-center group hover:border-[#00e5ff]/50 transition-all">
@@ -143,10 +168,11 @@ export default function AdminCentral() {
           </div>
         </div>
 
-        {/* COLUNA 3: LOGS */}
+        {/* COLUNA 3: LOGS DO SISTEMA */}
         <div className="col-span-12 lg:col-span-3 bg-[#1e293b]/30 rounded-[40px] p-6 border border-slate-800">
           <h2 className="text-[10px] font-black uppercase text-slate-500 mb-6 italic text-center">Logs do Sistema</h2>
           <div className="space-y-4">
+            {logs.length === 0 && <p className="text-center text-[9px] text-slate-600 italic">Sem atividades recentes.</p>}
             {logs.map(log => (
               <div key={log.id} className="border-l-2 border-[#00e5ff] pl-4 py-1">
                 <p className="text-[9px] font-black text-[#00e5ff] uppercase">{log.vendedor_nome || 'Sistema'}</p>

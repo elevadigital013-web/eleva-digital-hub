@@ -13,7 +13,7 @@ export default function VendedoresTodos() {
   const [pix, setPix] = useState('');
   const [senha, setSenha] = useState('');
   const [telefone, setTelefone] = useState('');
-  const [comissao, setComissao] = useState('20'); // Valor padrão de 20%
+  const [comissao, setComissao] = useState('20'); 
   
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState({ texto: '', tipo: '' });
@@ -40,7 +40,6 @@ export default function VendedoresTodos() {
     setMsg({ texto: '', tipo: '' });
 
     try {
-      // 1. Cria o acesso de login no Supabase Auth
       const { error: authError } = await supabase.auth.signUp({
         email,
         password: senha || 'mudar123',
@@ -51,7 +50,6 @@ export default function VendedoresTodos() {
 
       if (authError) throw authError;
 
-      // 2. Salva os dados comerciais na tabela 'dados_vendedores'
       const { error: dbError } = await supabase.from('dados_vendedores').insert([{
         nome,
         email,
@@ -65,7 +63,6 @@ export default function VendedoresTodos() {
 
       setMsg({ texto: `Vendedor ${nome} cadastrado com sucesso!`, tipo: 'sucesso' });
       
-      // Limpa o formulário
       setNome(''); setEmail(''); setPix(''); setSenha(''); setTelefone(''); setComissao('20');
       loadVendedores();
 
@@ -76,17 +73,14 @@ export default function VendedoresTodos() {
     }
   };
 
-  // Função para excluir registro
   const excluirVendedor = async (id: number, nomeV: string) => {
     if (!confirm(`Deseja realmente remover ${nomeV} da equipe?`)) return;
-    
     await supabase.from('dados_vendedores').delete().eq('id', id);
     loadVendedores();
   };
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-white p-4 md:p-8 font-sans">
-      {/* Botão Voltar */}
       <button 
         onClick={() => router.push('/admin/central')} 
         className="mb-8 text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors tracking-widest"
@@ -101,7 +95,7 @@ export default function VendedoresTodos() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           
-          {/* COLUNA ESQUERDA: FORMULÁRIO */}
+          {/* FORMULÁRIO DE CADASTRO */}
           <div className="lg:col-span-1">
             <div className="bg-[#1e293b] p-8 rounded-[40px] border border-slate-800 shadow-2xl sticky top-8">
               <h2 className="text-xl font-black mb-6 uppercase italic text-slate-200">Novo Consultor</h2>
@@ -109,28 +103,28 @@ export default function VendedoresTodos() {
               <form onSubmit={handleCadastrar} className="space-y-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Nome Completo</label>
-                  <input required type="text" className="w-full bg-[#0f172a] border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-blue-500 transition-all font-bold" value={nome} onChange={e => setNome(e.target.value)} />
+                  <input required type="text" className="w-full bg-[#0f172a] border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-blue-500 font-bold" value={nome} onChange={e => setNome(e.target.value)} />
                 </div>
 
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-slate-500 ml-2">E-mail de Login</label>
-                  <input required type="email" className="w-full bg-[#0f172a] border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-blue-500 transition-all font-bold" value={email} onChange={e => setEmail(e.target.value)} />
+                  <input required type="email" className="w-full bg-[#0f172a] border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-blue-500 font-bold" value={email} onChange={e => setEmail(e.target.value)} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Senha Acesso</label>
-                    <input type="text" className="w-full bg-[#0f172a] border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-blue-500 transition-all font-bold" value={senha} onChange={e => setSenha(e.target.value)} placeholder="mudar123" />
+                    <input type="text" className="w-full bg-[#0f172a] border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-blue-500 font-bold" value={senha} onChange={e => setSenha(e.target.value)} placeholder="mudar123" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Comissão %</label>
-                    <input type="number" className="w-full bg-[#0f172a] border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-orange-500 transition-all font-bold text-orange-400" value={comissao} onChange={e => setComissao(e.target.value)} />
+                    <input type="number" className="w-full bg-[#0f172a] border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-orange-500 font-bold text-orange-400" value={comissao} onChange={e => setComissao(e.target.value)} />
                   </div>
                 </div>
 
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Chave PIX</label>
-                  <input type="text" className="w-full bg-[#0f172a] border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-emerald-500 transition-all font-bold text-emerald-400" value={pix} onChange={e => setPix(e.target.value)} />
+                  <input type="text" className="w-full bg-[#0f172a] border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-emerald-500 font-bold text-emerald-400" value={pix} onChange={e => setPix(e.target.value)} />
                 </div>
 
                 {msg.texto && (
@@ -149,15 +143,14 @@ export default function VendedoresTodos() {
             </div>
           </div>
 
-          {/* COLUNA DIREITA: LISTAGEM DE CARDS */}
+          {/* LISTAGEM DE VENDEDORES */}
           <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
             {vendedores.length === 0 ? (
               <div className="col-span-full py-20 text-center opacity-20 italic">Nenhum consultor cadastrado ainda.</div>
             ) : (
               vendedores.map(v => (
-                <div key={v.id} className="bg-[#1e293b] p-8 rounded-[40px] border border-slate-800 shadow-xl hover:border-blue-500/30 transition-all group relative overflow-hidden">
+                <div key={v.id} className="bg-[#1e293b] p-8 rounded-[40px] border border-slate-800 shadow-xl hover:border-blue-500/30 transition-all group relative overflow-hidden flex flex-col justify-between">
                   
-                  {/* Badge de Comissão */}
                   <div className="absolute top-0 right-0 bg-blue-600 px-6 py-2 rounded-bl-[30px] text-[10px] font-black uppercase italic tracking-tighter">
                     {v.comissao_percent || 20}% Comissão
                   </div>
@@ -185,6 +178,14 @@ export default function VendedoresTodos() {
                       </div>
                     </div>
 
+                    {/* NOVO BOTÃO DE GESTÃO DE ARQUIVOS */}
+                    <button 
+                      onClick={() => router.push(`/admin/central/vendedores_todos/arquivos/${v.email}`)}
+                      className="w-full mt-4 bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white py-3 rounded-2xl text-[10px] font-black uppercase italic transition-all border border-blue-500/20"
+                    >
+                      📂 Ver Arquivos Enviados
+                    </button>
+
                     <button 
                       onClick={() => excluirVendedor(v.id, v.nome)}
                       className="w-full text-[9px] font-black text-slate-600 hover:text-red-500 uppercase transition-colors pt-4 border-t border-slate-800/50"
@@ -196,7 +197,6 @@ export default function VendedoresTodos() {
               ))
             )}
           </div>
-
         </div>
       </div>
     </div>
