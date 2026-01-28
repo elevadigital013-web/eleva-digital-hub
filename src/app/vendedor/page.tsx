@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { formatCurrency } from '@/lib/utils';
-import { AutoMotivation } from '@/components/AutoMotivation'; // <--- Restaurado!
+import { AutoMotivation } from '@/components/AutoMotivation';
 
 export default function VendedorDashboard() {
   const router = useRouter();
@@ -13,12 +13,20 @@ export default function VendedorDashboard() {
   const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // 1. AS FRASES DEVEM FICAR AQUI (FORA DO RETORNO VISUAL)
+  const frasesEleva = [
+    "🚀 Pra cima deles! Cada lead é uma oportunidade de ouro.",
+    "💰 O sucesso é a soma de pequenos esforços repetidos dia após dia.",
+    "🏆 Você não fecha vendas, você constrói relacionamentos.",
+    "🔥 Atitude é tudo. Transforme o 'não' em um próximo passo!",
+    "💎 Foco no fechamento. A Eleva Digital conta com o seu talento!"
+  ];
+
   useEffect(() => {
     async function loadData() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/'); return; }
       
-      // Define o nome real do consultor
       setVendedorNome(user.user_metadata?.nome || user.email?.split('@')[0] || 'Consultor');
 
       const { data: leadsData } = await supabase
@@ -29,15 +37,12 @@ export default function VendedorDashboard() {
 
       if (leadsData) {
         setLeads(leadsData);
-        let vendido = 0; let comi = 0; let f = 0; let a = 0;
+        let vendido = 0; let f = 0; let a = 0;
         leadsData.forEach(l => {
-          if (l.status === 'fechado') {
-            vendido += Number(l.valor_venda);
-            comi += (Number(l.valor_venda) * 0.25);
-            f++;
-          } else { a++; }
+          if (l.status === 'fechado') { vendido += Number(l.valor_venda); f++; } 
+          else { a++; }
         });
-        setStats({ valorVendido: vendido, comissao: comi, qtdFechado: f, qtdAberto: a });
+        setStats({ valorVendido: vendido, comissao: vendido * 0.25, qtdFechado: f, qtdAberto: a });
       }
       setLoading(false);
     }
@@ -57,13 +62,13 @@ export default function VendedorDashboard() {
         <button onClick={() => supabase.auth.signOut().then(() => router.push('/'))} className="bg-white px-4 py-2 rounded-full shadow-sm text-red-500 border border-slate-100 font-black text-[10px] uppercase">Sair</button>
       </div>
 
-      {/* COMPONENTE DE MOTIVAÇÃO */}
+      {/* 2. PASSE AS FRASES PARA O COMPONENTE AQUI */}
       <div className="mb-8">
-        <AutoMotivation />
+        <AutoMotivation phrases={frasesEleva} />
       </div>
 
       {/* PLACAR DE RESULTADOS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-slate-900 p-8 rounded-[40px] text-white shadow-xl">
           <p className="text-blue-400 text-[10px] font-black uppercase mb-1">Total Vendido</p>
           <p className="text-3xl font-black italic tracking-tighter">{formatCurrency(stats.valorVendido)}</p>
@@ -86,7 +91,7 @@ export default function VendedorDashboard() {
         </div>
       </div>
 
-      {/* LISTA DE ATIVIDADE COM CONTACTO */}
+      {/* LISTA DE ATIVIDADE */}
       <div className="space-y-4">
         <h2 className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-4 mb-4">Atividade Recente</h2>
         
@@ -102,17 +107,15 @@ export default function VendedorDashboard() {
                       {l.status === 'fechado' ? 'Fechado' : 'Aberto'}
                    </span>
                 </div>
-                {/* Exibição do número facilitada */}
                 <p className="text-[10px] font-bold text-slate-400 italic">📱 {l.telefone || 'Sem contacto'}</p>
               </div>
 
-              {/* BOTÃO WHATSAPP DIRETO */}
               {l.telefone && (
                 <a 
                   href={`https://wa.me/55${l.telefone.replace(/\D/g, '')}`} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="w-12 h-12 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 transition-colors"
+                  className="w-12 h-12 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30"
                 >
                   <span className="text-xl">💬</span>
                 </a>
