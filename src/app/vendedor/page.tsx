@@ -3,34 +3,14 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { AutoMotivation } from '@/components/AutoMotivation';
-
-// Função auxiliar para formatação
-const formatCurrency = (valor: number) => {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
-};
-
-const FRASES_MOTIVACIONAIS = [
-  "O único lugar onde o sucesso vem antes do trabalho é no dicionário.",
-  "Você é do tamanho dos seus sonhos. Voe alto!",
-  "Hoje é dia de fazer história.",
-  "O 'não' você já tem. Busque o 'SIM'!",
-  "A meta é o chão, o céu é o limite.",
-  "Vender é a arte de criar soluções. Você é um artista!",
-  "Sua atitude determina sua altitude."
-];
+import { formatCurrency } from '@/lib/utils';
+import { AutoMotivation } from '@/components/AutoMotivation'; // <--- Restaurado!
 
 export default function VendedorDashboard() {
   const router = useRouter();
-  
-  const [stats, setStats] = useState({ 
-    valorVendido: 0, 
-    comissao: 0, 
-    qtdFechado: 0, 
-    qtdAberto: 0 
-  });
-  
-  const [vendedorNome, setVendedorNome] = useState('');
+  const [stats, setStats] = useState({ valorVendido: 0, comissao: 0, qtdFechado: 0, qtdAberto: 0 });
+  const [vendedorNome, setVendedorNome] = useState('Consultor');
+  const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,37 +18,26 @@ export default function VendedorDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/'); return; }
       
-      setVendedorNome(user.user_metadata?.nome || 'Consultor');
+      // Define o nome real do consultor
+      setVendedorNome(user.user_metadata?.nome || user.email?.split('@')[0] || 'Consultor');
 
-      const { data: leads } = await supabase
+      const { data: leadsData } = await supabase
         .from('leads')
         .select('*')
-        .eq('vendedor_id', user.id);
+        .eq('vendedor_id', user.id)
+        .order('created_at', { ascending: false });
 
-      if (leads) {
-        let valorTotal = 0;
-        let comissaoTotal = 0;
-        let fechados = 0;
-        let abertos = 0;
-
-        leads.forEach(l => {
+      if (leadsData) {
+        setLeads(leadsData);
+        let vendido = 0; let comi = 0; let f = 0; let a = 0;
+        leadsData.forEach(l => {
           if (l.status === 'fechado') {
-            fechados++;
-            const v = Number(l.valor_venda) || 0;
-            valorTotal += v;
-            const perc = v >= 5000 ? 0.25 : 0.20;
-            if (!l.pago) comissaoTotal += (v * perc);
-          } else {
-            abertos++;
-          }
+            vendido += Number(l.valor_venda);
+            comi += (Number(l.valor_venda) * 0.25);
+            f++;
+          } else { a++; }
         });
-
-        setStats({ 
-            valorVendido: valorTotal, 
-            comissao: comissaoTotal, 
-            qtdFechado: fechados, 
-            qtdAberto: abertos 
-        });
+        setStats({ valorVendido: vendido, comissao: comi, qtdFechado: f, qtdAberto: a });
       }
       setLoading(false);
     }
@@ -77,67 +46,89 @@ export default function VendedorDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 font-sans">
-      <AutoMotivation phrases={FRASES_MOTIVACIONAIS} />
-
-      <div className="flex justify-between items-center mb-8">
+      {/* CABEÇALHO */}
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-black italic text-slate-900 tracking-tighter">
-            Olá, <span className="text-blue-600">{loading ? '...' : vendedorNome}</span>
+          <h1 className="text-2xl font-black italic text-slate-900 tracking-tighter uppercase leading-none">
+            Olá, <span className="text-blue-600">{vendedorNome}</span>
           </h1>
-          <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Painel de Performance</p>
+          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Performance Eleva</p>
         </div>
-        <button onClick={() => supabase.auth.signOut().then(() => router.push('/'))} className="bg-white p-3 rounded-full shadow-sm text-red-500 border border-slate-100 hover:bg-red-50 transition-colors">
-          Sair
-        </button>
+        <button onClick={() => supabase.auth.signOut().then(() => router.push('/'))} className="bg-white px-4 py-2 rounded-full shadow-sm text-red-500 border border-slate-100 font-black text-[10px] uppercase">Sair</button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-slate-900 p-8 rounded-[40px] text-white shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/30 blur-[60px] rounded-full"></div>
-          <p className="text-blue-400 text-[10px] font-black uppercase tracking-widest mb-1 italic">Total Vendido</p>
-          <p className="text-4xl font-black tracking-tighter">{loading ? '...' : formatCurrency(stats.valorVendido)}</p>
-        </div>
-        
-        <div className="bg-amber-500 p-8 rounded-[40px] text-slate-900 shadow-lg shadow-amber-500/20">
-          <p className="text-amber-900 text-[10px] font-black uppercase tracking-widest mb-1 italic">Comissão a Receber</p>
-          <p className="text-4xl font-black tracking-tighter">{loading ? '...' : formatCurrency(stats.comissao)}</p>
-        </div>
+      {/* COMPONENTE DE MOTIVAÇÃO */}
+      <div className="mb-8">
+        <AutoMotivation />
+      </div>
 
-        <div className="bg-white p-6 rounded-[40px] text-slate-900 shadow-sm border border-slate-100 flex gap-4">
+      {/* PLACAR DE RESULTADOS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+        <div className="bg-slate-900 p-8 rounded-[40px] text-white shadow-xl">
+          <p className="text-blue-400 text-[10px] font-black uppercase mb-1">Total Vendido</p>
+          <p className="text-3xl font-black italic tracking-tighter">{formatCurrency(stats.valorVendido)}</p>
+        </div>
+        <div className="bg-amber-500 p-8 rounded-[40px] text-slate-900 shadow-lg">
+          <p className="text-amber-900 text-[10px] font-black uppercase mb-1">Sua Comissão (25%)</p>
+          <p className="text-3xl font-black italic tracking-tighter">{formatCurrency(stats.comissao)}</p>
+        </div>
+        <div className="bg-white p-6 rounded-[40px] border border-slate-100 flex gap-4">
           <div className="flex-1 bg-emerald-50 rounded-3xl flex flex-col items-center justify-center p-2 border border-emerald-100">
-             <span className="text-2xl">🏆</span>
-             <p className="text-3xl font-black text-emerald-600 leading-none mt-1">{loading ? '-' : stats.qtdFechado}</p>
-             <p className="text-[8px] font-black uppercase text-emerald-400 mt-1">Fechadas</p>
+             <span className="text-xl">🏆</span>
+             <p className="text-2xl font-black text-emerald-600 leading-none mt-1">{stats.qtdFechado}</p>
+             <p className="text-[8px] font-black uppercase text-emerald-400">Vendas</p>
           </div>
           <div className="flex-1 bg-slate-50 rounded-3xl flex flex-col items-center justify-center p-2 border border-slate-200">
-             <span className="text-2xl">⏳</span>
-             <p className="text-3xl font-black text-slate-600 leading-none mt-1">{loading ? '-' : stats.qtdAberto}</p>
-             <p className="text-[8px] font-black uppercase text-slate-400 mt-1">Em Aberto</p>
+             <span className="text-xl">⏳</span>
+             <p className="text-2xl font-black text-slate-600 leading-none mt-1">{stats.qtdAberto}</p>
+             <p className="text-[8px] font-black uppercase text-slate-400">Leads</p>
           </div>
         </div>
       </div>
 
+      {/* LISTA DE ATIVIDADE COM CONTACTO */}
       <div className="space-y-4">
-        <div onClick={() => router.push('/vendedor/cursos')} className="bg-white border-2 border-blue-600 p-6 rounded-[35px] shadow-lg shadow-blue-100 flex items-center justify-between group active:scale-95 transition-all cursor-pointer relative overflow-hidden">
-          <div className="absolute right-0 top-0 bg-blue-600 text-white text-[8px] font-black px-4 py-1 rounded-bl-xl uppercase italic">Novo Conteúdo</div>
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center text-3xl">🎓</div>
-            <div>
-              <h2 className="text-xl font-black uppercase italic text-slate-900 leading-none">Eleva Academy</h2>
-              <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mt-1 italic">Treinamentos e Provas</p>
-            </div>
-          </div>
-          <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all">→</div>
-        </div>
+        <h2 className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-4 mb-4">Atividade Recente</h2>
+        
+        {leads.length === 0 ? (
+          <p className="text-center text-slate-400 text-xs py-10 italic">Nenhum registro encontrado.</p>
+        ) : (
+          leads.map((l) => (
+            <div key={l.id} className="bg-white p-6 rounded-[35px] shadow-sm border border-slate-100 flex items-center justify-between group active:scale-[0.98] transition-all">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                   <h3 className="font-black text-slate-900 text-sm uppercase italic">{l.nome_cliente}</h3>
+                   <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase ${l.status === 'fechado' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                      {l.status === 'fechado' ? 'Fechado' : 'Aberto'}
+                   </span>
+                </div>
+                {/* Exibição do número facilitada */}
+                <p className="text-[10px] font-bold text-slate-400 italic">📱 {l.telefone || 'Sem contacto'}</p>
+              </div>
 
-        <button onClick={() => router.push('/vendedor/novo-lead')} className="w-full bg-blue-600 text-white p-8 rounded-[35px] shadow-xl shadow-blue-600/30 flex items-center justify-between active:scale-95 transition-all group">
-          <div className="text-left">
-            <p className="font-black text-2xl uppercase italic leading-none">Novo Registro</p>
-            <p className="text-[10px] text-blue-200 uppercase font-bold tracking-widest mt-1 italic">Cadastrar Venda no Campo</p>
-          </div>
-          <span className="text-4xl font-light group-hover:rotate-90 transition-transform">＋</span>
-        </button>
+              {/* BOTÃO WHATSAPP DIRETO */}
+              {l.telefone && (
+                <a 
+                  href={`https://wa.me/55${l.telefone.replace(/\D/g, '')}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="w-12 h-12 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 transition-colors"
+                >
+                  <span className="text-xl">💬</span>
+                </a>
+              )}
+            </div>
+          ))
+        )}
       </div>
+
+      {/* BOTÃO NOVO REGISTRO */}
+      <button 
+        onClick={() => router.push('/vendedor/novo-lead')}
+        className="fixed bottom-8 right-8 bg-blue-600 text-white w-16 h-16 rounded-full shadow-2xl shadow-blue-600/40 flex items-center justify-center text-3xl font-bold transition-transform active:scale-90"
+      >
+        ＋
+      </button>
     </div>
   );
 }
