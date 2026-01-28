@@ -10,24 +10,23 @@ export default function VendedorDashboard() {
   
   // ESTADOS DE DADOS
   const [vendedorNome, setVendedorNome] = useState('');
-  const [comissaoPercent, setComissaoPercent] = useState(20); // Valor de segurança
+  const [comissaoPercent, setComissaoPercent] = useState(20); 
   const [stats, setStats] = useState({ valorVendido: 0, comissao: 0, qtdVendas: 0, qtdLeads: 0 });
   const [leadsAtivos, setLeadsAtivos] = useState<any[]>([]);
 
   useEffect(() => {
     async function loadData() {
-      // 1. Pega o usuário logado
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/'); return; }
 
-      // 2. BUSCA A COMISSÃO DINÂMICA (Definida no seu Painel Admin)
+      // 1. BUSCA A COMISSÃO DINÂMICA
       const { data: vDados } = await supabase
         .from('dados_vendedores')
         .select('nome, comissao_percent')
         .eq('email', user.email)
         .single();
 
-      let taxaComissao = 20; // Padrão caso não encontre
+      let taxaComissao = 20; 
       if (vDados) {
         setVendedorNome(vDados.nome.toUpperCase());
         taxaComissao = vDados.comissao_percent || 20;
@@ -36,7 +35,7 @@ export default function VendedorDashboard() {
         setVendedorNome(user.email?.split('@')[0].toUpperCase() || 'CONSULTOR');
       }
 
-      // 3. Busca todos os leads para calcular o faturamento
+      // 2. Busca todos os leads para calcular o faturamento
       const { data: todosLeads } = await supabase
         .from('leads')
         .select('*')
@@ -54,7 +53,6 @@ export default function VendedorDashboard() {
           }
         });
         
-        // CALCULO DINÂMICO: Usa a porcentagem vinda do banco de dados
         setStats({ 
           valorVendido: faturamento, 
           comissao: faturamento * (taxaComissao / 100), 
@@ -62,7 +60,6 @@ export default function VendedorDashboard() {
           qtdLeads: l 
         });
         
-        // FILTRO: Mostra apenas leads 'novo' (Aberto)
         setLeadsAtivos(todosLeads.filter(item => item.status === 'novo'));
       }
     }
@@ -72,7 +69,7 @@ export default function VendedorDashboard() {
   return (
     <div className="min-h-screen bg-white p-6 font-sans">
       
-      {/* HEADER ESTILO MAYA */}
+      {/* HEADER */}
       <div className="flex justify-between items-start mb-8">
         <div>
           <h1 className="text-3xl font-black italic text-slate-900 tracking-tighter leading-none">
@@ -80,59 +77,71 @@ export default function VendedorDashboard() {
           </h1>
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Sua Performance Eleva</p>
         </div>
-        <button onClick={() => supabase.auth.signOut().then(() => router.push('/'))} className="text-[10px] font-black text-red-500 uppercase tracking-widest border-b border-red-200">Sair</button>
+        <button onClick={() => supabase.auth.signOut().then(() => router.push('/'))} className="text-[10px] font-black text-red-500 uppercase tracking-widest border-b border-red-200 p-1">Sair</button>
       </div>
 
-      {/* PLACAR DINÂMICO */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
-        
-        {/* Card Faturamento (Dark) */}
+      {/* PLACAR FINANCEIRO */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div className="bg-slate-900 p-8 rounded-[40px] text-white shadow-xl">
           <p className="text-blue-400 text-[10px] font-black uppercase mb-1 tracking-widest">Total Vendido</p>
           <p className="text-4xl font-black italic tracking-tighter">{formatCurrency(stats.valorVendido)}</p>
         </div>
         
-        {/* Card Comissão Dinâmica (Laranja) */}
         <div className="bg-orange-400 p-8 rounded-[40px] text-slate-900 shadow-lg relative overflow-hidden">
-          <p className="text-orange-900 text-[10px] font-black uppercase mb-1 tracking-widest">
-            Sua Comissão ({comissaoPercent}%)
-          </p>
+          <p className="text-orange-900 text-[10px] font-black uppercase mb-1 tracking-widest">Sua Comissão ({comissaoPercent}%)</p>
           <p className="text-4xl font-black italic tracking-tighter">{formatCurrency(stats.comissao)}</p>
-          <div className="absolute -right-4 -bottom-4 text-orange-300/30 text-7xl font-black italic">
-            %
-          </div>
-        </div>
-{/* ACESSO À ACADEMY */}
-<div 
-  onClick={() => router.push('/vendedor/academy')}
-  className="bg-blue-600 p-6 rounded-[40px] mb-8 flex items-center justify-between cursor-pointer hover:bg-blue-500 transition-colors shadow-xl shadow-blue-600/20 active:scale-[0.98]"
->
-  <div className="flex items-center gap-4">
-    <div className="bg-white/20 w-12 h-12 rounded-2xl flex items-center justify-center text-2xl">🎓</div>
-    <div>
-      <h3 className="text-white font-black italic uppercase leading-none">Eleva Academy</h3>
-      <p className="text-blue-200 text-[10px] font-bold uppercase mt-1">Acesse seus treinamentos e materiais</p>
-    </div>
-  </div>
-  <span className="text-white font-black text-xl">→</span>
-</div>
-
-        {/* Mini Cards de Quantidade */}
-        <div className="flex gap-4">
-          <div className="flex-1 bg-slate-50 rounded-[35px] border border-slate-100 flex flex-col items-center justify-center p-4">
-             <span className="text-xl mb-1">🏆</span>
-             <p className="text-2xl font-black text-slate-800 leading-none">{stats.qtdVendas}</p>
-             <p className="text-[8px] font-black uppercase text-slate-400 mt-1">Vendas</p>
-          </div>
-          <div className="flex-1 bg-slate-50 rounded-[35px] border border-slate-100 flex flex-col items-center justify-center p-4">
-             <span className="text-xl mb-1">⏳</span>
-             <p className="text-2xl font-black text-slate-800 leading-none">{stats.qtdLeads}</p>
-             <p className="text-[8px] font-black uppercase text-slate-400 mt-1">Em Aberto</p>
-          </div>
+          <div className="absolute -right-4 -bottom-4 text-orange-300/30 text-7xl font-black italic">%</div>
         </div>
       </div>
 
-      {/* LISTA DE LEADS (Apenas abertos e com WhatsApp) */}
+      {/* ACESSOS RÁPIDOS (ACADEMY E MINHA PASTA) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        {/* Card Eleva Academy */}
+        <div 
+          onClick={() => router.push('/vendedor/academy')}
+          className="bg-blue-600 p-6 rounded-[40px] flex items-center justify-between cursor-pointer hover:bg-blue-500 transition-colors shadow-xl shadow-blue-600/20 active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 w-12 h-12 rounded-2xl flex items-center justify-center text-2xl">🎓</div>
+            <div>
+              <h3 className="text-white font-black italic uppercase text-sm leading-none">Eleva Academy</h3>
+              <p className="text-blue-200 text-[9px] font-bold uppercase mt-1">Treinamentos e materiais</p>
+            </div>
+          </div>
+          <span className="text-white font-black text-xl">→</span>
+        </div>
+
+        {/* Card Minha Pasta */}
+        <div 
+          onClick={() => router.push('/vendedor/meus-arquivos')}
+          className="bg-slate-900 p-6 rounded-[40px] border border-slate-800 flex items-center justify-between cursor-pointer hover:border-blue-500 transition-all active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-4">
+            <div className="bg-slate-800 w-12 h-12 rounded-2xl flex items-center justify-center text-2xl">📁</div>
+            <div>
+              <h3 className="text-white font-black italic uppercase text-sm leading-none">Minha Pasta</h3>
+              <p className="text-slate-500 text-[9px] font-bold uppercase mt-1">Contratos e documentos</p>
+            </div>
+          </div>
+          <span className="text-blue-500 text-xl">→</span>
+        </div>
+      </div>
+
+      {/* MINI CARDS DE QUANTIDADE */}
+      <div className="flex gap-4 mb-10">
+        <div className="flex-1 bg-slate-50 rounded-[35px] border border-slate-100 flex flex-col items-center justify-center p-4">
+           <span className="text-xl mb-1">🏆</span>
+           <p className="text-2xl font-black text-slate-800 leading-none">{stats.qtdVendas}</p>
+           <p className="text-[8px] font-black uppercase text-slate-400 mt-1">Vendas</p>
+        </div>
+        <div className="flex-1 bg-slate-50 rounded-[35px] border border-slate-100 flex flex-col items-center justify-center p-4">
+           <span className="text-xl mb-1">⏳</span>
+           <p className="text-2xl font-black text-slate-800 leading-none">{stats.qtdLeads}</p>
+           <p className="text-[8px] font-black uppercase text-slate-400 mt-1">Em Aberto</p>
+        </div>
+      </div>
+
+      {/* LISTA DE LEADS */}
       <div className="space-y-4 mb-24">
         <h2 className="text-[11px] font-black uppercase text-slate-400 tracking-widest ml-4 mb-4">Leads para Contato</h2>
         
@@ -151,7 +160,6 @@ export default function VendedorDashboard() {
                 <p className="text-[10px] font-bold text-slate-400 italic">📱 {l.telefone || 'Sem número'}</p>
               </div>
 
-              {/* Ação Rápida WhatsApp */}
               {l.telefone && (
                 <a 
                   href={`https://wa.me/55${l.telefone.replace(/\D/g, '')}`} 
