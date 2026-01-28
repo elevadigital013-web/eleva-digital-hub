@@ -47,11 +47,11 @@ export default function DashboardAdmin() {
         </h1>
         
         <div className="grid grid-cols-2 md:flex gap-3 w-full lg:w-auto">
-           <button onClick={() => router.push('/admin/central/dashboard/academy')} className="bg-cyan-600 hover:bg-cyan-500 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg shadow-cyan-900/20">🎓 Academy</button>
-           <button onClick={() => router.push('/admin/central/dashboard/moderacao')} className="bg-orange-600 hover:bg-orange-500 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg shadow-orange-900/20">💬 Moderação</button>
-           <button onClick={() => router.push('/admin/central/vendedores_todos')} className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">👥 Vendedores</button>
-           <button onClick={() => router.push('/admin/central/docs')} className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">📄 Documentos</button>
-        </div>
+   <button onClick={() => router.push('/admin/central/academy')} className="bg-cyan-600 hover:bg-cyan-500 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg shadow-cyan-900/20">🎓 Academy</button>
+   <button onClick={() => router.push('/admin/central/moderacao')} className="bg-orange-600 hover:bg-orange-500 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg shadow-orange-900/20">💬 Moderação</button>
+   <button onClick={() => router.push('/admin/central/vendedores_todos')} className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">👥 Vendedores</button>
+   <button onClick={() => router.push('/admin/central/docs')} className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">📄 Documentos</button>
+</div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
