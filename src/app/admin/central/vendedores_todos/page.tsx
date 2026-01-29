@@ -40,8 +40,8 @@ export default function VendedoresTodos() {
     setMsg({ texto: '', tipo: '' });
 
     try {
-      // 1. Cria o acesso no Auth
-      const { error: authError } = await supabase.auth.signUp({
+      // 1. Cria o acesso no Auth e captura os dados de retorno
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password: senha || 'mudar123',
         options: {
@@ -50,9 +50,11 @@ export default function VendedoresTodos() {
       });
 
       if (authError) throw authError;
+      if (!authData.user) throw new Error("Erro ao gerar ID de autenticação.");
 
-      // 2. Salva os dados na tabela de gestão
+      // 2. Salva os dados vinculando ao vendedor_id gerado pelo Auth
       const { error: dbError } = await supabase.from('dados_vendedores').insert([{
+        vendedor_id: authData.user.id, // Vincula o login aos dados
         nome,
         email,
         senha_visualizacao: senha || 'mudar123',
@@ -76,10 +78,19 @@ export default function VendedoresTodos() {
     }
   };
 
+  // Função de exclusão com tratamento de erro
   const excluirVendedor = async (id: number, nomeV: string) => {
     if (!confirm(`Deseja realmente remover ${nomeV} da equipe?`)) return;
-    await supabase.from('dados_vendedores').delete().eq('id', id);
-    loadVendedores();
+    
+    try {
+      const { error } = await supabase.from('dados_vendedores').delete().eq('id', id);
+      if (error) throw error;
+      
+      setMsg({ texto: `${nomeV} removido com sucesso!`, tipo: 'sucesso' });
+      loadVendedores();
+    } catch (error: any) {
+      setMsg({ texto: 'Erro ao remover: ' + error.message, tipo: 'erro' });
+    }
   };
 
   return (
