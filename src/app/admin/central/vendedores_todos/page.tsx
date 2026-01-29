@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 export default function VendedoresTodos() {
   const router = useRouter();
   
-  // Estados para o formulário de cadastro
+  // Estados para o formulário
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [pix, setPix] = useState('');
@@ -19,9 +19,9 @@ export default function VendedoresTodos() {
   const [msg, setMsg] = useState({ texto: '', tipo: '' });
   const [vendedores, setVendedores] = useState<any[]>([]);
 
-  // Carrega a lista de vendedores cadastrados
+  // Carrega a lista de vendedores
   async function loadVendedores() {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('dados_vendedores')
       .select('*')
       .order('nome', { ascending: true });
@@ -33,13 +33,14 @@ export default function VendedoresTodos() {
     loadVendedores();
   }, []);
 
-  // Função para criar novo vendedor (Auth + Database)
+  // Função para criar novo vendedor
   const handleCadastrar = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMsg({ texto: '', tipo: '' });
 
     try {
+      // 1. Cria o acesso no Auth
       const { error: authError } = await supabase.auth.signUp({
         email,
         password: senha || 'mudar123',
@@ -50,6 +51,7 @@ export default function VendedoresTodos() {
 
       if (authError) throw authError;
 
+      // 2. Salva os dados na tabela de gestão
       const { error: dbError } = await supabase.from('dados_vendedores').insert([{
         nome,
         email,
@@ -63,6 +65,7 @@ export default function VendedoresTodos() {
 
       setMsg({ texto: `Vendedor ${nome} cadastrado com sucesso!`, tipo: 'sucesso' });
       
+      // Reseta os campos
       setNome(''); setEmail(''); setPix(''); setSenha(''); setTelefone(''); setComissao('20');
       loadVendedores();
 
@@ -102,29 +105,35 @@ export default function VendedoresTodos() {
               
               <form onSubmit={handleCadastrar} className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Nome Completo</label>
+                  <label className="text-[10px] font-black uppercase text-slate-500 ml-2 italic">Nome Completo</label>
                   <input required type="text" className="w-full bg-[#0f172a] border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-blue-500 font-bold" value={nome} onChange={e => setNome(e.target.value)} />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-500 ml-2">E-mail de Login</label>
+                  <label className="text-[10px] font-black uppercase text-slate-500 ml-2 italic">E-mail de Login</label>
                   <input required type="email" className="w-full bg-[#0f172a] border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-blue-500 font-bold" value={email} onChange={e => setEmail(e.target.value)} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Senha Acesso</label>
-                    <input type="text" className="w-full bg-[#0f172a] border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-blue-500 font-bold" value={senha} onChange={e => setSenha(e.target.value)} placeholder="mudar123" />
+                    <label className="text-[10px] font-black uppercase text-slate-500 ml-2 italic">Telefone</label>
+                    <input type="text" className="w-full bg-[#0f172a] border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-blue-500 font-bold" value={telefone} onChange={e => setTelefone(e.target.value)} placeholder="(00) 00000-0000" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Comissão %</label>
+                    <label className="text-[10px] font-black uppercase text-slate-500 ml-2 italic">Comissão %</label>
                     <input type="number" className="w-full bg-[#0f172a] border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-orange-500 font-bold text-orange-400" value={comissao} onChange={e => setComissao(e.target.value)} />
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Chave PIX</label>
-                  <input type="text" className="w-full bg-[#0f172a] border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-emerald-500 font-bold text-emerald-400" value={pix} onChange={e => setPix(e.target.value)} />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-slate-500 ml-2 italic">Senha</label>
+                    <input type="text" className="w-full bg-[#0f172a] border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-blue-500 font-bold" value={senha} onChange={e => setSenha(e.target.value)} placeholder="mudar123" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-slate-500 ml-2 italic">PIX</label>
+                    <input type="text" className="w-full bg-[#0f172a] border border-slate-800 p-4 rounded-2xl text-emerald-400 outline-none focus:border-emerald-500 font-bold" value={pix} onChange={e => setPix(e.target.value)} />
+                  </div>
                 </div>
 
                 {msg.texto && (
@@ -146,7 +155,7 @@ export default function VendedoresTodos() {
           {/* LISTAGEM DE VENDEDORES */}
           <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
             {vendedores.length === 0 ? (
-              <div className="col-span-full py-20 text-center opacity-20 italic">Nenhum consultor cadastrado ainda.</div>
+              <div className="col-span-full py-20 text-center opacity-20 italic text-slate-500">Nenhum consultor cadastrado ainda.</div>
             ) : (
               vendedores.map(v => (
                 <div key={v.id} className="bg-[#1e293b] p-8 rounded-[40px] border border-slate-800 shadow-xl hover:border-blue-500/30 transition-all group relative overflow-hidden flex flex-col justify-between">
@@ -161,7 +170,7 @@ export default function VendedoresTodos() {
 
                   <div className="space-y-6">
                     <div>
-                      <p className="text-[9px] font-black text-slate-500 uppercase mb-2 tracking-widest">Financeiro (PIX)</p>
+                      <p className="text-[9px] font-black text-slate-500 uppercase mb-2 tracking-widest italic">Financeiro (PIX)</p>
                       <p className="font-mono text-sm text-emerald-400 bg-emerald-950/30 p-4 rounded-2xl border border-emerald-900/30 break-all">
                         {v.chave_pix || 'Não cadastrada'}
                       </p>
@@ -169,21 +178,20 @@ export default function VendedoresTodos() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-[#0f172a] p-4 rounded-2xl border border-slate-800">
-                        <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Acesso Login</p>
+                        <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Senha Acesso</p>
                         <p className="font-mono text-[11px] text-orange-400 uppercase">{v.senha_visualizacao || '****'}</p>
                       </div>
                       <div className="bg-[#0f172a] p-4 rounded-2xl border border-slate-800">
-                        <p className="text-[8px] font-black text-slate-500 uppercase mb-1">E-mail</p>
-                        <p className="text-[9px] font-bold text-slate-300 truncate">{v.email}</p>
+                        <p className="text-[8px] font-black text-slate-500 uppercase mb-1">Telefone</p>
+                        <p className="text-[9px] font-bold text-slate-300 truncate">{v.telefone || '(00) 00000-0000'}</p>
                       </div>
                     </div>
 
-                    {/* NOVO BOTÃO DE GESTÃO DE ARQUIVOS */}
                     <button 
-                      onClick={() => router.push(`/admin/central/vendedores_todos/arquivos/${v.email}`)}
-                      className="w-full mt-4 bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white py-3 rounded-2xl text-[10px] font-black uppercase italic transition-all border border-blue-500/20"
+                      onClick={() => router.push(`/admin/central/contratos_equipe`)}
+                      className="w-full mt-4 bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white py-4 rounded-2xl text-[10px] font-black uppercase italic transition-all border border-blue-500/20 tracking-widest"
                     >
-                      📂 Ver Arquivos Enviados
+                      📂 Abrir Auditoria de Contratos
                     </button>
 
                     <button 

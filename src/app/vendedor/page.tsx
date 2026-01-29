@@ -65,7 +65,7 @@ export default function VendedorDashboard() {
           qtdLeads: l 
         });
         
-        // Filtra leads pendentes para a lista de contato rápida
+        // Filtra apenas leads em aberto para a lista
         setLeadsAtivos(todosLeads.filter(item => item.status === 'novo' || item.status === 'pendente'));
       }
       setLoading(false);
@@ -74,7 +74,7 @@ export default function VendedorDashboard() {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-white p-6 font-sans">
+    <div className="min-h-screen bg-white p-6 font-sans pb-24">
       
       {/* HEADER INTEGRADO */}
       <div className="flex justify-between items-start mb-8">
@@ -95,18 +95,18 @@ export default function VendedorDashboard() {
       {/* PLACAR FINANCEIRO */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div className="bg-slate-900 p-8 rounded-[40px] text-white shadow-xl">
-          <p className="text-blue-400 text-[10px] font-black uppercase mb-1 tracking-widest">Total Vendido</p>
+          <p className="text-blue-400 text-[10px] font-black uppercase mb-1 tracking-widest italic">Total Vendido</p>
           <p className="text-4xl font-black italic tracking-tighter">{formatCurrency(stats.valorVendido)}</p>
         </div>
         
         <div className="bg-orange-400 p-8 rounded-[40px] text-slate-900 shadow-lg relative overflow-hidden">
-          <p className="text-orange-900 text-[10px] font-black uppercase mb-1 tracking-widest">Sua Comissão ({comissaoPercent}%)</p>
+          <p className="text-orange-900 text-[10px] font-black uppercase mb-1 tracking-widest italic">Comissão a Receber ({comissaoPercent}%)</p>
           <p className="text-4xl font-black italic tracking-tighter">{formatCurrency(stats.comissao)}</p>
           <div className="absolute -right-4 -bottom-4 text-orange-300/30 text-7xl font-black italic">%</div>
         </div>
       </div>
 
-      {/* ACESSOS RÁPIDOS (ACADEMY E AGORA: MINHA PASTA) */}
+      {/* ACESSOS RÁPIDOS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div 
           onClick={() => router.push('/vendedor/academy')}
@@ -137,29 +137,29 @@ export default function VendedorDashboard() {
         </div>
       </div>
 
-      {/* MINI CARDS DE PERFORMANCE */}
+      {/* PERFORMANCE */}
       <div className="flex gap-4 mb-10">
-        <div className="flex-1 bg-slate-50 rounded-[35px] border border-slate-100 flex flex-col items-center justify-center p-4">
+        <div className="flex-1 bg-slate-50 rounded-[35px] border border-slate-100 flex flex-col items-center justify-center p-6">
            <span className="text-xl mb-1">🏆</span>
            <p className="text-2xl font-black text-slate-800 leading-none">{stats.qtdVendas}</p>
-           <p className="text-[8px] font-black uppercase text-slate-400 mt-1">Vendas</p>
+           <p className="text-[8px] font-black uppercase text-slate-400 mt-1 italic">Fechadas</p>
         </div>
-        <div className="flex-1 bg-slate-50 rounded-[35px] border border-slate-100 flex flex-col items-center justify-center p-4">
+        <div className="flex-1 bg-slate-50 rounded-[35px] border border-slate-100 flex flex-col items-center justify-center p-6">
            <span className="text-xl mb-1">⏳</span>
            <p className="text-2xl font-black text-slate-800 leading-none">{stats.qtdLeads}</p>
-           <p className="text-[8px] font-black uppercase text-slate-400 mt-1">Em Aberto</p>
+           <p className="text-[8px] font-black uppercase text-slate-400 mt-1 italic">Em Aberto</p>
         </div>
       </div>
 
-      {/* LISTAGEM DE LEADS COM WHATSAPP INTEGRADO */}
-      <div className="space-y-4 mb-24">
+      {/* LEADS */}
+      <div className="space-y-4">
         <h2 className="text-[11px] font-black uppercase text-slate-400 tracking-widest ml-4 mb-4">Leads para Contato</h2>
         
         {loading ? (
           <p className="text-center py-10 animate-pulse text-[10px] font-black uppercase text-slate-300 italic">Sincronizando Leads...</p>
         ) : leadsAtivos.length === 0 ? (
           <div className="bg-slate-50 rounded-[40px] p-12 text-center border-2 border-dashed border-slate-100">
-             <p className="text-slate-400 text-xs font-bold italic">Nenhum lead em aberto no momento. 🚀</p>
+             <p className="text-slate-400 text-xs font-bold italic">Tudo limpo! Nenhum lead em aberto. 🚀</p>
           </div>
         ) : (
           leadsAtivos.map((l) => (
@@ -187,7 +187,7 @@ export default function VendedorDashboard() {
         )}
       </div>
 
-      {/* BOTÃO FLUTUANTE NOVO REGISTRO */}
+      {/* BOTÃO FLUTUANTE */}
       <button 
         onClick={() => router.push('/vendedor/novo-lead')}
         className="fixed bottom-8 right-8 bg-blue-600 text-white w-16 h-16 rounded-full shadow-2xl shadow-blue-600/40 font-black text-3xl flex items-center justify-center hover:scale-110 active:scale-90 transition-all z-40"
