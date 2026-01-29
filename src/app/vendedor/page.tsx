@@ -121,19 +121,20 @@ export default function VendedorDashboard() {
           </div>
           <span className="text-white font-black text-xl">→</span>
         </div>
-
+        
+        {/* BOTÃO: MINHA PASTA (AUDITORIA) */}
         <div 
           onClick={() => router.push('/vendedor/meus-arquivos')}
-          className="bg-slate-900 p-6 rounded-[40px] border border-slate-800 flex items-center justify-between cursor-pointer hover:border-blue-500 transition-all active:scale-[0.98]"
+          className="bg-white p-6 rounded-[35px] border-2 border-blue-100 shadow-sm flex items-center justify-between cursor-pointer hover:shadow-md transition-all mb-4 group"
         >
           <div className="flex items-center gap-4">
-            <div className="bg-slate-800 w-12 h-12 rounded-2xl flex items-center justify-center text-2xl">📁</div>
+            <div className="bg-blue-500 w-12 h-12 rounded-2xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform text-white shadow-lg shadow-blue-500/20">📂</div>
             <div>
-              <h3 className="text-white font-black italic uppercase text-sm leading-none">Minha Pasta</h3>
-              <p className="text-slate-500 text-[9px] font-bold uppercase mt-1">Contratos e documentos</p>
+              <h2 className="text-slate-900 font-black italic uppercase text-sm leading-none">Minha Pasta</h2>
+              <p className="text-blue-500 text-[9px] font-black uppercase mt-1 tracking-widest">Enviar Contratos p/ Auditoria</p>
             </div>
           </div>
-          <span className="text-blue-500 text-xl">→</span>
+          <div className="w-8 h-8 bg-blue-50 rounded-full flex items-center justify-center text-blue-500 group-hover:bg-blue-600 group-hover:text-white transition-all">＋</div>
         </div>
       </div>
 
