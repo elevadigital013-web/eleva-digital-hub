@@ -13,13 +13,15 @@ export default function VendedorDashboard() {
   const [comissaoPercent, setComissaoPercent] = useState(20); 
   const [stats, setStats] = useState({ valorVendido: 0, comissao: 0, qtdVendas: 0, qtdLeads: 0 });
   const [leadsAtivos, setLeadsAtivos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
+      setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/'); return; }
 
-      // 1. BUSCA A COMISSÃO DINÂMICA
+      // 1. BUSCA A COMISSÃO DINÂMICA E NOME
       const { data: vDados } = await supabase
         .from('dados_vendedores')
         .select('nome, comissao_percent')
@@ -32,21 +34,24 @@ export default function VendedorDashboard() {
         taxaComissao = vDados.comissao_percent || 20;
         setComissaoPercent(taxaComissao);
       } else {
-        setVendedorNome(user.email?.split('@')[0].toUpperCase() || 'CONSULTOR');
+        setVendedorNome(user.user_metadata?.nome?.toUpperCase() || user.email?.split('@')[0].toUpperCase() || 'CONSULTOR');
       }
 
-      // 2. Busca todos os leads para calcular o faturamento
+      // 2. BUSCA TODOS OS LEADS PARA CÁLCULO DE PERFORMANCE
       const { data: todosLeads } = await supabase
         .from('leads')
         .select('*')
-        .eq('vendedor_id', user.id);
+        .eq('vendedor_id', user.id)
+        .order('created_at', { ascending: false });
 
       if (todosLeads) {
-        let faturamento = 0; let v = 0; let l = 0;
+        let faturamento = 0; 
+        let v = 0; 
+        let l = 0;
         
         todosLeads.forEach(item => {
           if (item.status === 'fechado') {
-            faturamento += Number(item.valor_venda);
+            faturamento += Number(item.valor_venda) || 0;
             v++;
           } else {
             l++;
@@ -60,8 +65,10 @@ export default function VendedorDashboard() {
           qtdLeads: l 
         });
         
-        setLeadsAtivos(todosLeads.filter(item => item.status === 'novo'));
+        // Filtra leads pendentes para a lista de contato rápida
+        setLeadsAtivos(todosLeads.filter(item => item.status === 'novo' || item.status === 'pendente'));
       }
+      setLoading(false);
     }
     loadData();
   }, [router]);
@@ -69,7 +76,7 @@ export default function VendedorDashboard() {
   return (
     <div className="min-h-screen bg-white p-6 font-sans">
       
-      {/* HEADER */}
+      {/* HEADER INTEGRADO */}
       <div className="flex justify-between items-start mb-8">
         <div>
           <h1 className="text-3xl font-black italic text-slate-900 tracking-tighter leading-none">
@@ -77,7 +84,12 @@ export default function VendedorDashboard() {
           </h1>
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Sua Performance Eleva</p>
         </div>
-        <button onClick={() => supabase.auth.signOut().then(() => router.push('/'))} className="text-[10px] font-black text-red-500 uppercase tracking-widest border-b border-red-200 p-1">Sair</button>
+        <button 
+          onClick={() => supabase.auth.signOut().then(() => router.push('/'))} 
+          className="text-[10px] font-black text-red-500 uppercase tracking-widest border-b border-red-200 p-1"
+        >
+          Sair
+        </button>
       </div>
 
       {/* PLACAR FINANCEIRO */}
@@ -94,9 +106,8 @@ export default function VendedorDashboard() {
         </div>
       </div>
 
-      {/* ACESSOS RÁPIDOS (ACADEMY E MINHA PASTA) */}
+      {/* ACESSOS RÁPIDOS (ACADEMY E AGORA: MINHA PASTA) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        {/* Card Eleva Academy */}
         <div 
           onClick={() => router.push('/vendedor/academy')}
           className="bg-blue-600 p-6 rounded-[40px] flex items-center justify-between cursor-pointer hover:bg-blue-500 transition-colors shadow-xl shadow-blue-600/20 active:scale-[0.98]"
@@ -111,7 +122,6 @@ export default function VendedorDashboard() {
           <span className="text-white font-black text-xl">→</span>
         </div>
 
-        {/* Card Minha Pasta */}
         <div 
           onClick={() => router.push('/vendedor/meus-arquivos')}
           className="bg-slate-900 p-6 rounded-[40px] border border-slate-800 flex items-center justify-between cursor-pointer hover:border-blue-500 transition-all active:scale-[0.98]"
@@ -127,7 +137,7 @@ export default function VendedorDashboard() {
         </div>
       </div>
 
-      {/* MINI CARDS DE QUANTIDADE */}
+      {/* MINI CARDS DE PERFORMANCE */}
       <div className="flex gap-4 mb-10">
         <div className="flex-1 bg-slate-50 rounded-[35px] border border-slate-100 flex flex-col items-center justify-center p-4">
            <span className="text-xl mb-1">🏆</span>
@@ -141,11 +151,13 @@ export default function VendedorDashboard() {
         </div>
       </div>
 
-      {/* LISTA DE LEADS */}
+      {/* LISTAGEM DE LEADS COM WHATSAPP INTEGRADO */}
       <div className="space-y-4 mb-24">
         <h2 className="text-[11px] font-black uppercase text-slate-400 tracking-widest ml-4 mb-4">Leads para Contato</h2>
         
-        {leadsAtivos.length === 0 ? (
+        {loading ? (
+          <p className="text-center py-10 animate-pulse text-[10px] font-black uppercase text-slate-300 italic">Sincronizando Leads...</p>
+        ) : leadsAtivos.length === 0 ? (
           <div className="bg-slate-50 rounded-[40px] p-12 text-center border-2 border-dashed border-slate-100">
              <p className="text-slate-400 text-xs font-bold italic">Nenhum lead em aberto no momento. 🚀</p>
           </div>
@@ -154,8 +166,8 @@ export default function VendedorDashboard() {
             <div key={l.id} className="bg-white p-6 rounded-[35px] shadow-sm border border-slate-100 flex items-center justify-between group active:scale-[0.98] transition-all">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <h3 className="font-black text-slate-900 uppercase italic">{l.nome_cliente}</h3>
-                  <span className="bg-blue-50 text-blue-500 text-[8px] font-black px-2 py-0.5 rounded-full uppercase">Pendente</span>
+                  <h3 className="font-black text-slate-900 uppercase italic leading-none">{l.nome_cliente}</h3>
+                  <span className="bg-blue-50 text-blue-500 text-[8px] font-black px-2 py-0.5 rounded-full uppercase italic">Pendente</span>
                 </div>
                 <p className="text-[10px] font-bold text-slate-400 italic">📱 {l.telefone || 'Sem número'}</p>
               </div>
@@ -164,6 +176,7 @@ export default function VendedorDashboard() {
                 <a 
                   href={`https://wa.me/55${l.telefone.replace(/\D/g, '')}`} 
                   target="_blank" 
+                  rel="noopener noreferrer"
                   className="w-12 h-12 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 transition-colors"
                 >
                   <span className="text-xl">💬</span>
@@ -174,7 +187,7 @@ export default function VendedorDashboard() {
         )}
       </div>
 
-      {/* BOTÃO FLUTUANTE NOVO LEAD */}
+      {/* BOTÃO FLUTUANTE NOVO REGISTRO */}
       <button 
         onClick={() => router.push('/vendedor/novo-lead')}
         className="fixed bottom-8 right-8 bg-blue-600 text-white w-16 h-16 rounded-full shadow-2xl shadow-blue-600/40 font-black text-3xl flex items-center justify-center hover:scale-110 active:scale-90 transition-all z-40"

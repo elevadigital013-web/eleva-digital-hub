@@ -12,6 +12,7 @@ export default function AdminCentral() {
   const [feedbacksPendentes, setFeedbacksPendentes] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  // CARREGAMENTO DE DADOS COMPLETO
   async function loadData() {
     setLoading(true);
     
@@ -21,7 +22,7 @@ export default function AdminCentral() {
     // 2. Busca Logs recentes para a coluna da direita
     const { data: g } = await supabase.from('logs_sistema').select('*').order('created_at', { ascending: false }).limit(10);
     
-    // 3. Busca contagem de feedbacks
+    // 3. Busca contagem de feedbacks pendentes
     const { count } = await supabase
       .from('comentarios_academy')
       .select('*', { count: 'exact', head: true })
@@ -36,7 +37,7 @@ export default function AdminCentral() {
 
   useEffect(() => { loadData(); }, []);
 
-  // --- LÓGICA DO RANKING ---
+  // --- LÓGICA DO RANKING (PRESERVADA) ---
   const rankingVendedores = useMemo(() => {
     const resumo: { [key: string]: number } = {};
     leads.filter(l => l.status === 'fechado').forEach(l => {
@@ -54,7 +55,7 @@ export default function AdminCentral() {
     return leads.filter(l => l.status === 'fechado').reduce((acc, curr) => acc + Number(curr.valor_venda), 0);
   }, [leads]);
 
-  // --- FUNÇÃO TOGGLE STATUS ---
+  // --- FUNÇÃO TOGGLE STATUS COM LOG AUTOMÁTICO ---
   async function toggleStatus(lead: any) {
     const novoStatus = lead.status === 'fechado' ? 'novo' : 'fechado';
     if (novoStatus === 'fechado' && !confirm(`Fechar venda de ${lead.nome_cliente}?`)) return;
@@ -74,17 +75,17 @@ export default function AdminCentral() {
   return (
     <div className="min-h-screen bg-[#0f172a] text-white p-4 md:p-8 font-sans">
       
-      {/* HEADER COMPLETO */}
-      <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-center mb-10 gap-4">
+      {/* HEADER COMPLETO COM TODAS AS ROTAS */}
+      <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-center mb-10 gap-4 border-b border-slate-800 pb-8">
         <h1 className="text-xl font-black italic text-blue-500 uppercase">ELEVA <span className="text-white">CENTRAL</span></h1>
         
         <div className="flex flex-wrap gap-4 items-center">
-          <button onClick={() => router.push('/admin/central/vendedores_todos')} className="bg-blue-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase italic shadow-lg shadow-blue-600/20">Gestão Equipe</button>
+          <button onClick={() => router.push('/admin/central/vendedores_todos')} className="bg-blue-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase italic shadow-lg shadow-blue-600/20 active:scale-95 transition-all">Gestão Equipe</button>
           
           <div className="flex gap-4 items-center">
             <button onClick={() => router.push('/admin/central/academy')} className="text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors">Academy</button>
             <button onClick={() => router.push('/admin/central/moderacao')} className="text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors">Moderação</button>
-            <button onClick={() => router.push('/admin/central/logs')} className="text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors">Logs</button>
+            <button onClick={() => router.push('/admin/central/logs')} className="text-[10px] font-black uppercase text-slate-500 hover:text-white transition-colors">📜 Logs</button>
             
             <button 
               onClick={() => router.push('/admin/feedbacks')} 
@@ -110,7 +111,7 @@ export default function AdminCentral() {
             <p className="text-3xl font-black italic tracking-tighter">{formatCurrency(faturamentoTotal)}</p>
           </div>
           
-          <div className="bg-[#1e293b] p-6 rounded-[35px] border border-slate-800">
+          <div className="bg-[#1e293b] p-6 rounded-[35px] border border-slate-800 shadow-xl">
             <h2 className="text-[10px] font-black uppercase text-orange-500 mb-6 italic tracking-widest">🏆 Ranking Eleva</h2>
             <div className="space-y-4">
               {rankingVendedores.map((v, index) => (
@@ -125,25 +126,24 @@ export default function AdminCentral() {
             </div>
           </div>
 
-          {/* ATALHO AUDITORIA */}
           <div 
             onClick={() => router.push('/admin/central/contratos_equipe')}
-            className="bg-[#1e293b] p-6 rounded-[35px] border border-slate-800 cursor-pointer hover:border-blue-500 transition-all group"
+            className="bg-[#1e293b] p-6 rounded-[35px] border border-slate-800 cursor-pointer hover:border-blue-500 transition-all group shadow-lg"
           >
             <p className="text-[10px] font-black uppercase text-blue-500 mb-1">Auditoria</p>
             <h3 className="text-xs font-black text-white uppercase italic">Contratos da Equipe ➔</h3>
           </div>
         </div>
 
-        {/* MONITORAMENTO (CENTRO) */}
+        {/* MONITORAMENTO (CENTRO - 6 COLUNAS) */}
         <div className="col-span-12 lg:col-span-6 bg-[#1e293b] rounded-[40px] p-8 border border-slate-800 shadow-2xl">
           <h2 className="text-[10px] font-black uppercase text-slate-500 mb-8 italic tracking-widest">Monitoramento de Vendas</h2>
           <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
             {leads.map(l => (
-              <div key={l.id} className="bg-[#0f172a] p-6 rounded-[30px] border border-slate-800 flex justify-between items-center group transition-all">
+              <div key={l.id} className="bg-[#0f172a] p-6 rounded-[30px] border border-slate-800 flex justify-between items-center group transition-all hover:border-blue-500/40">
                 <div>
-                  <p className="font-black text-sm uppercase italic">{l.nome_cliente}</p>
-                  <p className="text-[10px] font-black text-blue-500 uppercase italic mt-1">{l.nome_vendedor}</p>
+                  <p className="font-black text-sm uppercase italic leading-none">{l.nome_cliente}</p>
+                  <p className="text-[10px] font-black text-blue-500 uppercase italic mt-2">{l.nome_vendedor}</p>
                 </div>
                 <div className="flex items-center gap-4">
                   <p className="font-black italic text-sm">{formatCurrency(l.valor_venda)}</p>
@@ -160,17 +160,27 @@ export default function AdminCentral() {
           </div>
         </div>
 
-        {/* COLUNA LOGS (DIREITA) */}
-        <div className="col-span-12 lg:col-span-3 bg-[#1e293b]/50 rounded-[40px] p-6 border border-slate-800">
-          <h2 className="text-[10px] font-black uppercase text-slate-500 mb-6 italic text-center">Logs Recentes</h2>
+        {/* COLUNA LOGS DIRETOS (DIREITA - 3 COLUNAS) */}
+        <div className="col-span-12 lg:col-span-3 bg-[#1e293b]/50 rounded-[40px] p-6 border border-slate-800 shadow-xl">
+          <h2 className="text-[10px] font-black uppercase text-slate-500 mb-6 italic text-center tracking-widest">Logs Recentes</h2>
           <div className="space-y-4">
-            {logs.map(log => (
-              <div key={log.id} className="border-l-2 border-blue-500 pl-4 py-1">
-                <p className="text-[9px] font-black text-blue-400 uppercase">{log.vendedor_nome}</p>
-                <p className="text-[10px] text-slate-300 italic leading-tight">{log.acao}</p>
-              </div>
-            ))}
-            <button onClick={() => router.push('/admin/central/logs')} className="w-full py-3 text-[9px] font-black uppercase text-slate-500 hover:text-white border border-dashed border-slate-800 rounded-xl mt-4">Ver tudo</button>
+            {logs.length === 0 ? (
+              <p className="text-[9px] text-center text-slate-600 italic">Nenhum log registrado.</p>
+            ) : (
+              logs.map(log => (
+                <div key={log.id} className="border-l-2 border-blue-500 pl-4 py-1">
+                  <p className="text-[9px] font-black text-blue-400 uppercase tracking-tighter">{log.vendedor_nome}</p>
+                  <p className="text-[10px] text-slate-300 italic leading-tight">{log.acao}</p>
+                  <p className="text-[7px] text-slate-600 uppercase font-bold mt-1">{new Date(log.created_at).toLocaleDateString()}</p>
+                </div>
+              ))
+            )}
+            <button 
+              onClick={() => router.push('/admin/central/logs')} 
+              className="w-full py-3 text-[9px] font-black uppercase text-slate-500 hover:text-white border border-dashed border-slate-800 rounded-xl mt-4 transition-all hover:border-slate-500"
+            >
+              Ver tudo
+            </button>
           </div>
         </div>
 
